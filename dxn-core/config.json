@@ -1,0 +1,38 @@
+{
+    "data": {
+        "public": [
+            {
+                "name": "profile",
+                "version": 1,
+                "fields": [
+                    {
+                        "name": "email",
+                        "datatype": "text",
+                        "value": "{vault.profile.email}"
+                    },
+                    {
+                        "name": "phone",
+                        "datatype": "text",
+                        "value": "{vault.profile.phone}"
+                    }
+                ]
+            },
+            {
+                "name": "wallet",
+                "version": 1,
+                "fields": [
+                    {
+                        "name": "address",
+                        "datatype": "text",
+                        "value": "{vault.profile.email}"
+                    },
+                    {
+                        "name": "test",
+                        "datatype": "text",
+                        "value": "{vault.profile.phone}"
+                    }
+                ]
+            }
+        ]
+    }
+}
