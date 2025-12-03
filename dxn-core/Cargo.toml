@@ -1,6 +1,6 @@
 [package]
-name = "cruddb"
-version = "0.1.0"
+name = "dxn"
+version = "0.0.2"
 edition = "2021"
 
 [dependencies]
@@ -9,6 +9,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 uuid = { version = "1.18.1", features = ["v7", "serde"] }
 serde_rusqlite = { version = "0.40.1" }
+chrono = "0.4"
 dxn_proc_macros = { path = "../dxn_proc_macros" }
 
 [dependencies.rusqlite]

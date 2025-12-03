@@ -1,5 +1,4 @@
 
-pub mod sqlite {
     use std::io;
 
     use rusqlite::{params, Connection, Result, Row};
@@ -187,7 +186,7 @@ pub mod sqlite {
         conn.execute(str, [], )?;
         Ok(())
     }
-}
+
 
 
 /*

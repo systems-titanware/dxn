@@ -1,18 +1,13 @@
 //use serde::Deserialize;
-use actix_web::{get, post, web, App, HttpResponse, HttpRequest, HttpServer, Responder};
-use std::sync::{Mutex, RwLock};
-use crate::data::db::sqlite::*;
-use crate::data::db::models::{DbColumn};
-use crate::data::models::{SystemData, SystemDataModel, QueryParams};
-use crate::system::models::{AppState};
-
-use std::error::Error;
+use actix_web::{ web,  HttpResponse, HttpRequest, Responder}; 
+use crate::data::db::sqlite; 
+use crate::data::models::{SystemData, QueryParams}; 
+ 
 use rusqlite::{Row, types::ValueRef, Result};
+use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
-use dxn_proc_macros::FieldNames; // Import your custom derive macro
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
-use std::marker::PhantomData;
 use std::collections::HashMap;
 use serde_json::{json, Value, Map};
 
@@ -24,7 +19,7 @@ fn remove_last_char(s: &str) -> &str {
     }
 }
 
-fn get_object_from_path(mut full_path: &str) -> &str {
+fn get_object_from_path(full_path: &str) -> &str {
     let parts: Vec<&str> = full_path.split('/').collect();
     let slice = &parts[..4]; // slice1 will be &[20, 30, 40]
 
@@ -43,16 +38,16 @@ pub async fn get(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
     };
 
     let object = get_object_from_path(req.path());
-    let result = sqlite::get("public".to_string(), object.to_string(), id, mapper);
+    let result = sqlite::repository::get("public".to_string(), object.to_string(), id, mapper);
 
     match result {
         Ok(content) => {
             HttpResponse::Ok().json(json!(content))
         }
         Err(err) => {
-            let errMessage = format!("Error Getting Data: {}", err);
+            let err_message = format!("Error Getting Data: {}", err);
             eprintln!("Error Getting Data: {}", err);
-            HttpResponse::Ok().body(errMessage)
+            HttpResponse::Ok().body(err_message)
         }
     }
 }
@@ -86,7 +81,7 @@ fn row_to_json_value(row: &Row) -> Result<Value> {
 }
     
 // LIST
-pub async fn list(req: HttpRequest, mut query_params:  web::Query<QueryParams>) -> impl Responder {
+pub async fn list(req: HttpRequest, query_params:  web::Query<QueryParams>) -> impl Responder {
     let mut page_size = 10;
     let mut page = 10;
     let mut query = &String::new();
@@ -104,7 +99,7 @@ pub async fn list(req: HttpRequest, mut query_params:  web::Query<QueryParams>) 
  
     let object = get_object_from_path(req.path());
 
-    let items = sqlite::list("public".to_string(), object.to_string(), 5, 5, "queryStr".to_string(), mapper);
+    let items = sqlite::repository::list("public".to_string(), object.to_string(), 5, 5, "queryStr".to_string(), mapper);
     
     match items {
         Ok(content) => {
@@ -137,28 +132,6 @@ pub enum MyError {
     Other(String),
 }
 
-/* 
-pub trait PayloadProperties<T: PayloadProperties> {
-    fn getProperties(&self) -> Vec<String>;
-    fn setProperties(&mut self, obj: T) -> Result<(), MyError>;
-}
-impl<T: PayloadProperties> PayloadProperties for Payload<T: PayloadProperties> {
-    
-    fn getProperties(&self) -> Vec<String> {
-        let vec: Vec<String> = Vec::new();
-        vec
-    }
-
-    fn setProperties(&mut self, obj: T) -> Result<(), MyError> {
-        self.names = Vec::new();
-        self.values = Vec::new();
-        Ok(())
-    }
-}
-     */
- 
-use serde::de::DeserializeOwned;
-use std::fmt::Debug;
 
 pub async fn post<T>(req: HttpRequest, payload: web::Json<HashMap<String, serde_json::Value>>) -> impl Responder 
 where
@@ -167,7 +140,7 @@ where
     // get object from path: /api/data/{object}
     let object = get_object_from_path(req.path());
     //Insert into db
-    let result = sqlite::insert(
+    let result = sqlite::repository::insert(
         "public".to_string(), 
         object.to_string(), 
         payload.keys().cloned().collect(), 
@@ -201,7 +174,7 @@ where
     let id = path.into_inner();
     let object = get_object_from_path(req.path());
 
-    let result = sqlite::update(
+    let result = sqlite::repository::update(
         "public".to_string(), 
         object.to_string(),
         id.clone(),
@@ -229,11 +202,11 @@ pub async fn delete(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
     let id = path.into_inner();
     let object = get_object_from_path(req.path());
 
-    let delete = sqlite::delete("public".to_string(), object.to_string(), id);
+    let delete = sqlite::repository::delete("public".to_string(), object.to_string(), id);
 
     match (delete) {
         Ok(content) => {
-            println!("Deleted {}", id);
+            println!("Deleted {}", content);
         }
         Err(err) => { 
             println!("Delete error: {}", err);
@@ -256,16 +229,17 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
             else {
                 //println!("Setup API for object: {:?}", vec);
                 for element in vec {
-                    let apiPath = format!("/{}", element.name);
+                    let api_path = format!("/{}", element.name);
                     println!("Setup API for object: {:?}", element.name);
                     cfg.service(
-                        web::scope(&apiPath)
+                        web::scope(&api_path)
                             .route("/list", web::get().to(list))
                             .route("/{id}", web::get().to(get))
                             .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
                             //Person
                             .route("/{id}", web::put().to(put::<HashMap<String, serde_json::Value>>))
                             .route("/{id}", web::delete().to(delete))
+                            .route("/db/migrate/{version}", web::post().to(post::<HashMap<String, serde_json::Value>>))
                             //.route("/echo", web::post().to(echo))
                     );
                 }
