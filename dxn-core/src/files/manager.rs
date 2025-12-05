@@ -1,3 +1,5 @@
+#![feature(concat_bytes)] // Required for std::concat_bytes!
+
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -10,6 +12,7 @@ use std::os::windows;
 use std::os::darwin;
 use std::path::Path;
 use std::path::PathBuf;
+use std::io::Write;
 
 const ROOT_FILE_PATH: &str = "./_files";
 
@@ -25,7 +28,23 @@ pub fn read_file(path: &str) -> io::Result<String> {
 }
 
 // A simple implementation of `% echo s > path`
-pub fn add_content(s: &str, path: &str) -> io::Result<()> {
+pub fn add_content(str: &str, path: &str) -> io::Result<()> {
+    let mut full_path = get_full_path(path);
+    // Open a file with append option.
+    // .append(true) ensures new data is added to the end of the file.
+    // .create(true) will create the file if it doesn't exist.
+    let mut file = OpenOptions::new()
+        .append(true)
+        .create(true) // Create the file if it doesn't exist
+        .open(full_path)?; // Use `?` for concise error propagation
+
+    // Write content to the file.
+    // .write_all() takes a byte slice.
+    file.write_all(str.as_bytes())
+}
+
+// A simple implementation of `% echo s > path`
+pub fn add_file_content(s: &str, path: &str) -> io::Result<()> {
     let mut full_path = get_full_path(path);
     let mut f = File::create(full_path)?;
     f.write_all(s.as_bytes())
@@ -49,7 +68,6 @@ fn get_full_path(path: &str) -> PathBuf {
 
 pub fn add_dir(path: &str) -> io::Result<()> { 
     let mut full_path = get_full_path(path);
-    println!("Creating path : {:?}", full_path); // Output: Path: "base_dir/subdir/file.txt" (or similar, depending on OS)
     fs::create_dir_all(full_path)?;
     Ok(())
 }

@@ -219,7 +219,6 @@ pub async fn delete(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
 
 
 pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
-    println!("Setup public data API");
     match data.public {
         Some(vec) => {
             // 'vec' is a Vec<SystemDataModel> here
@@ -230,7 +229,6 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
                 //println!("Setup API for object: {:?}", vec);
                 for element in vec {
                     let api_path = format!("/{}", element.name);
-                    println!("Setup API for object: {:?}", element.name);
                     cfg.service(
                         web::scope(&api_path)
                             .route("/list", web::get().to(list))

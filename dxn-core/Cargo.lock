@@ -424,6 +424,7 @@ dependencies = [
 name = "dxn"
 version = "0.0.2"
 dependencies = [
+ "actix-server",
  "actix-web",
  "chrono",
  "dxn_proc_macros",
@@ -444,9 +445,9 @@ dependencies = [
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.35"
+version = "0.8.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+checksum = "7268b386296a025e474d5140678f75d6de9493ae55a5d709eeb9dd08149945e1"
 dependencies = [
  "cfg-if",
 ]

@@ -3,20 +3,25 @@ mod server;
 mod serialization;
 mod system;
 mod files;
+//mod functions;
 
 use uuid::Uuid;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
+use actix_web::body::BoxBody;
 use std::sync::{Mutex, RwLock};
 use rusqlite::{params, Connection, Result};
 use data::db::sqlite::*;
-use chrono::prelude::*;
 
 use crate::data::models::{SystemData, SystemDataModel, SystemDataModelField};
 
+use crate::server::models::{SystemServer, SystemServerRoute};
+
+use crate::system::logger;
 use crate::system::models::{AppState, System};
 use crate::data::db::models::{DbColumn};
 
-async fn welcome(data: web::Data<AppState>) -> impl Responder {
+async fn stats(data: web::Data<AppState>) -> impl Responder {
     let app_name = &data.app_name; // <- get app_name
     // Mutex example
     //let mut counter = data.counter.lock().unwrap();
@@ -59,7 +64,6 @@ fn init_db(db_name: String, model: SystemDataModel) -> Result<()> {
 
     
     for field in standard_fields {
-        println!("add_field {} {}", field.name, field.datatype);
         columns.push(repository::create_col(field.name, field.datatype, true));
     }
     /*
@@ -72,8 +76,6 @@ fn init_db(db_name: String, model: SystemDataModel) -> Result<()> {
 }
 
 fn create_database(data: SystemData) -> Result<()> {
-    println!("create_database");
-    
     match data.public {
         Some(vec) => {
             // 'vec' is a Vec<SystemDataModel> here
@@ -84,7 +86,7 @@ fn create_database(data: SystemData) -> Result<()> {
                 //println!("Setup API for object: {:?}", vec);
                 for element in vec {
                     //println!("Setup DB for object: {:?}", element.name);
-                    init_db("public".to_string(), element);
+                    let _ = init_db("public".to_string(), element);
                 }
             }
         }
@@ -98,32 +100,13 @@ fn create_database(data: SystemData) -> Result<()> {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
-    // FILESYSTEM
-    files::manager::add_dir("logs/data");
-    files::manager::add_dir("logs/server");
-
-    let date_as_string = Utc::now().to_string();
-    let log_name: String = format!("log_{}.txt", date_as_string);
-    let log_path = format!("logs/server/{}", log_name);
-    let my_str: &str = &log_path; // my_str is a &str
-
-    files::manager::add_content("Main start\n", my_str);
-    match(files::manager::read_file("subfolder2/test1.txt")) {
-        Err(err) => {
-
-        }
-        Ok(content) => {
-            println!("Worked {:?}", content);
-        }
-    }
-
+    logger::log("App initialized");
     // DATA
-
-    /// DB
+    
     let file_path = "./config.json".to_string();
     
     let system_data = serialization::json::deserialize::<System>(file_path);
-    //println!("SystemData: {:?}", system_data);
+    println!("SystemData: {:?}", system_data);
     
     let app = web::Data::new(AppState {
         app_name: String::from("dxnet"),
@@ -134,10 +117,23 @@ async fn main() -> std::io::Result<()> {
         uuid: Uuid::now_v7()
     });
 
-    // Create DB
-    create_database(app.system.data.clone());
+
+    /// DB
+    let file_path = "./config.json".to_string();
     
-    // move counter into the closure
+    let system_data: std::result::Result<System, serde_json::Error> = serialization::json::deserialize::<System>(file_path);
+    //println!("SystemData: {:?}", system_data);
+ 
+    // Create DB
+    println!("Init -> Database");
+    create_database(app.system.data.clone()); 
+    
+    println!("Init -> Functions");
+    //crate::functions::manager::
+    println!("Init -> Integrations");
+
+    println!("Init -> Server");
+ 
     HttpServer::new(move || {
         App::new()
             // Configure app state
@@ -146,11 +142,69 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/api/data")
                 .configure(|cfg| { server::http::controllers::data::config(cfg, app.system.data.clone())})
             )
+            .service(web::scope("/server")
+                .configure(|cfg| server::http::controllers::server::config(cfg, app.system.server.clone()))
+            )
+            
             
             // Add default route
-            .route("/", web::get().to(welcome))
+            .route("/_.stats", web::get().to(stats))
+            .route("/", web::get().to(DXN))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
     .await
+ 
+
+}
+/*
+     Server::build()
+    .configure( |cfg : &mut ServiceConfig| {
+        cfg.bind( "site1", "0.0.0.0:8000").expect("bind failed");
+        cfg.bind( "site2", "0.0.0.0:9000").expect("bind failed");
+        cfg.apply(callback).expect("Failed to configure HTTP service");
+        Ok(())
+    }).expect("Unable to configure")
+    .run().expect("Failed to start HTTP server");
+    
+fn callback(runtime : &mut ServiceRuntime)  {
+    runtime.service("site1",
+        HttpService::build()
+            .finish(
+                App::new()
+                    .wrap(middleware::DefaultHeaders::new().header(http::header::CACHE_CONTROL, "no-cache"))
+                    //.wrap(middleware::Compress::default())  // <-- enabling this would prevent chunked response.
+                    .wrap(middleware::Logger::default())
+                    .service(
+                        web::resource("/iot/events")
+                            .route(web::get().to(outbound))
+                            .route(web::put().to_async(inbound))
+                    )
+            ) 
+    );
+
+    runtime.service("site2",
+        HttpService::build()
+            .finish(
+                App::new()
+                    .service(
+                        web::resource("/")
+                            .route(web::get().to(|| HttpResponse::Ok()))
+                    )
+            ) 
+    );
+}
+ */
+async fn DXN(data: web::Data<AppState>) -> impl Responder {
+    let html_content = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>DXN</title>
+        </head>
+        <body>
+        </body>
+        </html>
+    "#;
+    HttpResponse::Ok().content_type("text/html").body(html_content)
 }

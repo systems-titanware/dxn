@@ -1,9 +1,39 @@
 {
+    "functions": {
+        "public": [
+            {
+                "name": "markdown_to_html",
+                "src": "sample function"
+            }
+        ]
+    },
+    "server": {
+        "public": [
+            {
+                "name": "test",
+                "file": "/home.html",
+                "function": "markdown_to_html",
+                "routes": [
+                    {
+                        "name": "baby-test",
+                        "file": "/subpage.html",
+                        "routes": []
+                    }
+                ]
+            },
+            {
+                "name": "tester",
+                "file": "/tester.html",
+                "routes": []
+            }
+        ]
+    },
     "data": {
         "public": [
             {
                 "name": "profile",
                 "version": 1,
+                "db": "public",
                 "fields": [
                     {
                         "name": "email",
@@ -20,6 +50,7 @@
             {
                 "name": "wallet",
                 "version": 1,
+                "db": "private",
                 "fields": [
                     {
                         "name": "address",
