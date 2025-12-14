@@ -61,16 +61,19 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
             // Process Markdown to html
             println!("Server file response: {:?}\n", file);
             let processed_markdown: std::result::Result<String, integrations::models::IntegrationError> = integrations::manager::run("parser", "parse", Some(&file));
-            println!("Server markdown response: {:?}", processed_markdown);
 
             let content: &str = match processed_markdown {
                 Ok(content) => {
                     // Return file content
-                    return HttpResponse::Ok().content_type("text/html").body(content)
+                    let clean_str = String::from(content.clone().replace("\\n", "\n").replace("\"", ""));
+                    println!("Server markdown response: {:?}", clean_str);
+
+                    return HttpResponse::Ok().content_type("text/html").body(clean_str)
                 },
                 Err(err) => {
                     // Return error
                     println!("500: {:?}", err);
+                    crate::system::logger::log_error(format!("Error loading path {}, {:?}", path, err).as_str());
                     return HttpResponse::Ok().content_type("text/html").body(get_html_500())
                 }
             };

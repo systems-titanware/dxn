@@ -35,30 +35,29 @@ pub fn get(integration_name: &str) -> Option<SystemIntegrationModel> {
 pub fn run(integration_name: &str, command: &str, args: Option<&str>) -> Result<String, IntegrationError>{
     unsafe {
         let matched_integration = PUBLIC_INTEGRATIONS
-        .iter()
-        .to_owned()
-        .filter(|item| {
-            item.name == integration_name
-        })
-        .last();
+            .iter()
+            .to_owned()
+            .filter(|item| {
+                item.name == integration_name
+            })
+            .last();
         
         match matched_integration {
             Some(integration) => {
                 // Get path of integration
                 let path: String = format!("{}/{}", SHARED_FILES_PATH, integration.path);
+                
                 // Run integration
-              
                 let output = crate::integrations::compiler::run(&path, command, args);
 
                 if output.status.success() {
-                    //TODO: Change to logger 
                     crate::system::logger::log(format!("cargo run success: {}", integration.path).as_str());
                     Ok(String::from_utf8_lossy(&output.stdout).to_string())
                 } else {
                     //eprintln!("cargo run failed: {}", integration.path);
                     //eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                     crate::system::logger::log_error(format!("cargo run failed: {}", integration.path).as_str());
-                    Err(IntegrationError::RunTime(format!("cargo run failed: {}", integration.path)))
+                    Err(IntegrationError::RunTime(format!("cargo run failed: {} {:?}", integration.path, output)))
                 } 
             },
             None => {

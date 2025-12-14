@@ -9,7 +9,7 @@ This text is in a regular paragraph. You can format text as **bold** or *italic*
 *   Sub-items can be made by indenting:
     *   Like this one
 
-1.  Here is an ordered list
+1.  Here is an ordered list with quote
 2.  Using numbers followed by periods
 3.  The numbers don't have to be sequential in the source
 

@@ -27,10 +27,14 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let none_string: Option<String> = None;
 
-    //args[0] is 'run'
-    //args[1] is <command>
+    // args[0] is 'run'
+    
+    // args[1] is <command>
     let command = args[1].as_str();
-    //args[2] is optional args
+    
+    // args[2] is optional args
+    //let input = serde_json::to_string(args[2].as_str());
+    //println!("{:?}", args[2]);
 
     let parser = pulldown_cmark::Parser::new(args[2].as_str());
     // Write to a new String buffer.
