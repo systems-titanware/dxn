@@ -3,6 +3,7 @@ mod server;
 mod serialization;
 mod system;
 mod files;
+mod integrations;
 //mod functions;
 
 use uuid::Uuid;
@@ -16,6 +17,7 @@ use data::db::sqlite::*;
 use crate::data::models::{SystemData, SystemDataModel, SystemDataModelField};
 
 use crate::server::models::{SystemServer, SystemServerRoute};
+use crate::integrations::models::{SystemIntegrations, SystemIntegrationModel};
 
 use crate::system::logger;
 use crate::system::models::{AppState, System};
@@ -97,6 +99,33 @@ fn create_database(data: SystemData) -> Result<()> {
     Ok(())
 }
 
+fn init_integration(integration_name: String, model: SystemIntegrationModel) -> Result<()> {
+    crate::integrations::manager::init(model);
+    Ok(())
+}
+
+fn create_integrations(data: SystemIntegrations) -> Result<()> {
+    match data.public {
+        Some(vec) => {
+            // 'vec' is a Vec<SystemDataModel> here
+            if vec.is_empty() {
+                //println!("Vector is present but empty.");
+            } 
+            else {
+                //println!("Setup API for object: {:?}", vec);
+                for element in vec {
+                    //println!("Setup DB for object: {:?}", element.name);
+                    let _ = init_integration("public".to_string(), element);
+                }
+            }
+        }
+        None => {
+            // println!("No vector present.");
+        }
+    }
+    Ok(())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
@@ -106,7 +135,6 @@ async fn main() -> std::io::Result<()> {
     let file_path = "./config.json".to_string();
     
     let system_data = serialization::json::deserialize::<System>(file_path);
-    println!("SystemData: {:?}", system_data);
     
     let app = web::Data::new(AppState {
         app_name: String::from("dxnet"),
@@ -121,16 +149,18 @@ async fn main() -> std::io::Result<()> {
     /// DB
     let file_path = "./config.json".to_string();
     
-    let system_data: std::result::Result<System, serde_json::Error> = serialization::json::deserialize::<System>(file_path);
+    //let system_data: std::result::Result<System, serde_json::Error> = serialization::json::deserialize::<System>(file_path);
     //println!("SystemData: {:?}", system_data);
  
     // Create DB
     println!("Init -> Database");
     create_database(app.system.data.clone()); 
     
+    println!("Init -> Integrations");
+    create_integrations(app.system.integrations.clone()); 
+
     println!("Init -> Functions");
     //crate::functions::manager::
-    println!("Init -> Integrations");
 
     println!("Init -> Server");
  

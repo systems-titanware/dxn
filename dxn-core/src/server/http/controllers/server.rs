@@ -4,7 +4,7 @@ use crate::data::db::sqlite;
 use crate::system::models::{AppState}; 
 use crate::data::models::{SystemData, QueryParams}; 
 use crate::server::models::{SystemServer, SystemServerRoute};
-
+use crate::integrations;
 use rusqlite::{Row, types::ValueRef, Result};
 use std::fmt::Debug;
 
@@ -12,8 +12,7 @@ use serde::{Deserialize, Serialize};
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
 use std::collections::HashMap;
 use serde_json::{json, Value, Map};
-const GLOBAL_ROUTES_PATH: &str = "routes/";
-const GLOBAL_BASE_ROUTE_PATH: &str = "/server/";
+use crate::server::constants::{SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, GLOBAL_BASE_ROUTE_PATH};
 
 fn get_html_404() -> &'static str {
     r#"
@@ -32,6 +31,14 @@ fn get_html_500() -> &'static str {
     "#
 }
 
+
+#[derive(Serialize, Debug)]
+struct Person {
+    name: String,
+    age: u8,
+    is_student: bool,
+}
+
 // GET
 pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
     // Convert recurisve vector into flat hashmap of routes/file paths
@@ -48,9 +55,15 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
     // Return the contents of the file referenced in the route filepath
     match route_file {
         Some(item) => {
-            let path = format!("{}/{}", GLOBAL_ROUTES_PATH, item.1);
-            let file: Result<String, std::io::Error> = crate::files::manager::read_file(&path);
-            let content: &str = match file {
+            let path = format!("{}/{}/{}", SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, item.1);
+            let file = crate::files::manager::read_file(&path).unwrap_or(String::from("err"));
+            
+            // Process Markdown to html
+            println!("Server file response: {:?}\n", file);
+            let processed_markdown: std::result::Result<String, integrations::models::IntegrationError> = integrations::manager::run("parser", "parse", Some(&file));
+            println!("Server markdown response: {:?}", processed_markdown);
+
+            let content: &str = match processed_markdown {
                 Ok(content) => {
                     // Return file content
                     return HttpResponse::Ok().content_type("text/html").body(content)
@@ -70,6 +83,28 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
     };
 }
 
+pub fn send_object_to_integration() {
+
+    // run preprocessor
+    // 2. Create an instance of the struct
+    let person = Person {
+        name: "Alice".to_string(),
+        age: 30,
+        is_student: true,
+    };
+
+    // 3. Serialize to a JSON string
+    
+    match serde_json::to_string(&person) {
+        Ok(serialized_string) => {
+            let value = integrations::manager::run("parser", "parse", Some(&serialized_string));
+            println!("Server integration response: {:?}", value);
+        }
+        Err(e) => {
+            eprintln!("Error during serialization: {}", e);
+        }
+    }
+}
 pub async fn not_found(req: HttpRequest) -> impl Responder {
     HttpResponse::Ok().content_type("text/html").body(get_html_404())
 } 

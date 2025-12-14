@@ -5,6 +5,7 @@ use std::sync::{Mutex, RwLock};
 use std::vec::Vec;
 use crate::data::models::{SystemData};
 use crate::server::models::{SystemServer};
+use crate::integrations::models::{SystemIntegrations};
 
 // This struct represents state
 #[derive(Deserialize, Serialize, Debug)]
@@ -20,5 +21,6 @@ pub struct AppState {
 #[serde(rename_all = "camelCase")] // Optional: if JSON keys are camelCase
 pub struct System { 
     pub(crate) data: SystemData,
-    pub(crate) server: SystemServer
+    pub(crate) server: SystemServer,
+    pub(crate) integrations: SystemIntegrations
 }

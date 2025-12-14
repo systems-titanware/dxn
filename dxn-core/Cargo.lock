@@ -428,10 +428,12 @@ dependencies = [
  "actix-web",
  "chrono",
  "dxn_proc_macros",
+ "dxn_shared",
  "rusqlite",
  "serde",
  "serde_json",
  "serde_rusqlite",
+ "tokio",
  "uuid",
 ]
 
@@ -441,6 +443,13 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dxn_shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

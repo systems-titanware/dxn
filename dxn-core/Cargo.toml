@@ -12,7 +12,8 @@ uuid = { version = "1.18.1", features = ["v7", "serde"] }
 serde_rusqlite = { version = "0.40.1" }
 chrono = "0.4"
 dxn_proc_macros = { path = "../dxn_proc_macros" }
-
+dxn_shared = { path = "../dxn_shared" }
+tokio = { version = "1.48.0" }
 [dependencies.rusqlite]
 version = "0.37.0"
 features = ["bundled"]

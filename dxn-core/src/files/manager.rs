@@ -14,7 +14,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::io::Write;
 
-const ROOT_FILE_PATH: &str = "./_files";
+const ROOT_FILE_PATH: &str = "../dxn_public/_files";
 
 // A simple implementation of `% cat path`
 pub fn read_file(path: &str) -> io::Result<String> {

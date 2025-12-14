@@ -1,4 +1,53 @@
 {
+    "integrations": {
+        "public": [
+            {
+                "name": "wallet",
+                "path": "integrations/parser",
+                "version": "1",
+                "owner": "UUID",
+                "functions": [
+                    {
+                        "name": "parse_html",
+                        "params": {
+                            "parameter1": "hello world"
+                        }
+                    }
+                ],
+                "crates": "zksync"
+            },
+            {
+                "name": "parser",
+                "path": "integrations/parser",
+                "version": "1",
+                "owner": "UUID",
+                "functions": [
+                    {
+                        "name": "parse_html",
+                        "params": {
+                            "parameter1": "hello world"
+                        }
+                    }
+                ],
+                "crates": "html2markdown"
+            },
+            {
+                "name": "llm",
+                "path": "integrations/parser",
+                "owner": "UUID",
+                "version": "1",
+                "functions": [
+                    {
+                        "name": "parse_html",
+                        "params": {
+                            "parameter1": "hello world"
+                        }
+                    }
+                ],
+                "crates": "huggingface"
+            }
+        ]
+    },
     "functions": {
         "public": [
             {
@@ -11,19 +60,19 @@
         "public": [
             {
                 "name": "test",
-                "file": "/home.html",
+                "file": "post.md",
                 "function": "markdown_to_html",
                 "routes": [
                     {
                         "name": "baby-test",
-                        "file": "/subpage.html",
+                        "file": "subpage.html",
                         "routes": []
                     }
                 ]
             },
             {
                 "name": "tester",
-                "file": "/tester.html",
+                "file": "tester.html",
                 "routes": []
             }
         ]
