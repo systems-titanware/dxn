@@ -1,9 +1,7 @@
-mod data;
-mod server;
-mod serialization;
 mod system;
-mod files;
+mod data;
 mod integrations;
+mod functions;
 //mod functions;
 
 use uuid::Uuid;
@@ -16,7 +14,8 @@ use data::db::sqlite::*;
 
 use crate::data::models::{SystemData, SystemDataModel, SystemDataModelField};
 
-use crate::server::models::{SystemServer, SystemServerRoute};
+use crate::functions::models::SystemFunctions;
+use crate::system::server::models::{SystemServer, SystemServerRoute};
 use crate::integrations::models::{SystemIntegrations, SystemIntegrationModel};
 
 use crate::system::logger;
@@ -99,6 +98,26 @@ fn create_database(data: SystemData) -> Result<()> {
     Ok(())
 }
 
+fn create_functions(functions: SystemFunctions)  -> Result<()> {
+    match functions.public {
+        Some(vec) => {
+            // 'vec' is a Vec<SystemDataModel> here
+            if vec.is_empty() {
+                //println!("Vector is present but empty.");
+            } 
+            else {
+            //crate::functions::manager::
+                crate::functions::manager::init(vec.clone());
+                //crate::functions::runner::run(vec);
+            }
+        }
+        None => {
+            // println!("No vector present.");
+        }
+    }
+    Ok(())
+}
+
 fn init_integration(integration_name: String, model: SystemIntegrationModel) -> Result<()> {
     crate::integrations::manager::init(model);
     Ok(())
@@ -134,7 +153,7 @@ async fn main() -> std::io::Result<()> {
     
     let file_path = "./config.json".to_string();
     
-    let system_data = serialization::json::deserialize::<System>(file_path);
+    let system_data = system::serialization::json::deserialize::<System>(file_path);
     
     let app = web::Data::new(AppState {
         app_name: String::from("dxnet"),
@@ -160,7 +179,7 @@ async fn main() -> std::io::Result<()> {
     create_integrations(app.system.integrations.clone()); 
 
     println!("Init -> Functions");
-    //crate::functions::manager::
+    create_functions(app.system.functions.clone());
 
     println!("Init -> Server");
  
@@ -170,10 +189,10 @@ async fn main() -> std::io::Result<()> {
             .app_data(app.clone())
             // Configure routes from my_module under a specific scope
             .service(web::scope("/api/data")
-                .configure(|cfg| { server::http::controllers::data::config(cfg, app.system.data.clone())})
+                .configure(|cfg| { system::server::http::controllers::data::config(cfg, app.system.data.clone())})
             )
             .service(web::scope("/server")
-                .configure(|cfg| server::http::controllers::server::config(cfg, app.system.server.clone()))
+                .configure(|cfg| system::server::http::controllers::server::config(cfg, app.system.server.clone()))
             )
             
             
@@ -187,6 +206,11 @@ async fn main() -> std::io::Result<()> {
  
 
 }
+
+
+
+
+
 /*
      Server::build()
     .configure( |cfg : &mut ServiceConfig| {

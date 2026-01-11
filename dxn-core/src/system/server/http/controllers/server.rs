@@ -3,16 +3,17 @@ use actix_web::{ web,  HttpResponse, HttpRequest, Responder};
 use crate::data::db::sqlite; 
 use crate::system::models::{AppState}; 
 use crate::data::models::{SystemData, QueryParams}; 
-use crate::server::models::{SystemServer, SystemServerRoute};
+use crate::system::server::models::{SystemServer, SystemServerRoute, FlattenRoutePath};
 use crate::integrations;
 use rusqlite::{Row, types::ValueRef, Result};
 use std::fmt::Debug;
+use crate::functions::models::{EnumParamTypes};
 
 use serde::{Deserialize, Serialize};
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
 use std::collections::HashMap;
 use serde_json::{json, Value, Map};
-use crate::server::constants::{SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, GLOBAL_BASE_ROUTE_PATH};
+use crate::system::server::constants::{SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, GLOBAL_BASE_ROUTE_PATH};
 
 fn get_html_404() -> &'static str {
     r#"
@@ -52,22 +53,51 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
             return *x.0 == full_path
         })
         .last();
+
     // Return the contents of the file referenced in the route filepath
     match route_file {
         Some(item) => {
-            let path = format!("{}/{}/{}", SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, item.1);
-            let file = crate::files::manager::read_file(&path).unwrap_or(String::from("err"));
+            let route_item = item.1;
+
+            // If route has file, read file
+            // If route has function, run function
+
+            let path = format!("{}/{}/{}", SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, route_item.file);
+            let file = crate::system::files::manager::read_file(&path).unwrap_or(String::from("err"));
             
             // Process Markdown to html
-            println!("Server file response: {:?}\n", file);
             let processed_markdown: std::result::Result<String, integrations::models::IntegrationError> = integrations::manager::run("parser", "parse", Some(&file));
+            
+            match &route_item.function {
+                Some(function) => {
+                    println!("RUNNING {} {}", route_item.name, function);
+                    //let params: Vec<crate::functions::models::ParamTypes> = route_item.params;
 
+                  //  let tuple = params.first().convert_to_tuple();
+
+                    let res: Result<i32, wasmtime::Error> = crate::functions::manager::run(function.as_str(), (32, 44));
+
+                    match res {
+                        Ok(ress) => {
+                            println!("RUN, {:?}", ress);
+                        },
+                        Err(err) => {
+
+                            println!("ERR, {:?}", err);
+                        }
+                    }
+                    println!("RUN COMPLETE");
+                },
+                None => {
+
+                }
+            }
+
+            // return contents
             let content: &str = match processed_markdown {
                 Ok(content) => {
                     // Return file content
                     let clean_str = String::from(content.clone().replace("\\n", "\n").replace("\"", ""));
-                    println!("Server markdown response: {:?}", clean_str);
-
                     return HttpResponse::Ok().content_type("text/html").body(clean_str)
                 },
                 Err(err) => {
@@ -113,7 +143,7 @@ pub async fn not_found(req: HttpRequest) -> impl Responder {
 } 
  
 pub fn config(cfg: &mut web::ServiceConfig, data: SystemServer) {
-    let flattened_routes = flatten_routes(data.public);
+    let flattened_routes: HashMap<String, FlattenRoutePath> = flatten_routes(data.public);
     let actix_routes = convert_routes(flattened_routes);
     
     for service in actix_routes {
@@ -123,8 +153,8 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemServer) {
 }
 
 
-pub fn flatten_routes(data: Option<Vec<SystemServerRoute>>) -> HashMap<String, String> {
-     let mut flattened: HashMap<String, String> = HashMap::new();
+pub fn flatten_routes(data: Option<Vec<SystemServerRoute>>) -> HashMap<String, FlattenRoutePath> {
+     let mut flattened: HashMap<String, FlattenRoutePath> = HashMap::new();
 
     match data {
         Some(item) => {
@@ -139,15 +169,24 @@ pub fn flatten_routes(data: Option<Vec<SystemServerRoute>>) -> HashMap<String, S
 }
 
 
-pub fn recursively_flatten_routes(route: SystemServerRoute, map: &mut HashMap<String, String>, parent_route: &str) {
+pub fn recursively_flatten_routes(route: SystemServerRoute, map: &mut HashMap<String, FlattenRoutePath>, parent_route: &str) {
     // Insert the current node's data into the map
     let path = if parent_route.is_empty() {
-        route.name 
+        route.name.clone() 
     } else {
         format!("{}/{}", parent_route, route.name) 
     }; 
 
-    map.insert(path.clone(), route.file.clone());
+    let flattened_route = FlattenRoutePath {
+        name: route.name,
+        file: route.file.clone(),
+        function: route.function.clone(),
+        params: None,
+    };
+    //map.insert(path.clone(), route.file.clone());
+
+    
+    map.insert(path.clone(), flattened_route);
 
     // Recursively call the method for each child
     match (&route.routes) {
@@ -159,11 +198,15 @@ pub fn recursively_flatten_routes(route: SystemServerRoute, map: &mut HashMap<St
         None => {}
     }
 }
-fn convert_routes(mappped_routes: HashMap<String, String>) -> Vec<actix_web::Resource> {
+pub(crate) fn convert_routes(mappped_routes: HashMap<String, FlattenRoutePath>) -> Vec<actix_web::Resource> {
     let mut route_map: Vec<actix_web::Resource> = Vec::new();
    
     for child in mappped_routes {
         route_map.push(web::resource(child.0).route(web::get().to(get)));
     }
     route_map
-} 
+}
+
+#[cfg(test)]
+#[path = "server.test.rs"]
+mod tests; 

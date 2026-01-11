@@ -51,8 +51,32 @@
     "functions": {
         "public": [
             {
-                "name": "markdown_to_html",
-                "src": "sample function"
+                "name": "no_params",
+                "version": 1,
+                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "functionName": "no_params"
+            },
+            {
+                "name": "no_params_with_result",
+                "version": 1,
+                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "functionName": "no_params_with_result"
+            },
+            {
+                "name": "serialized_params",
+                "version": 1,
+                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "functionName": "serialized_params"
+            },
+            {
+                "name": "typed_params",
+                "version": 1,
+                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "functionName": "typed_params",
+                "parameters": [ 
+                    "i32", "i32"
+                ],
+                "return": "i32"
             }
         ]
     },
@@ -61,7 +85,8 @@
             {
                 "name": "test",
                 "file": "post.md",
-                "function": "markdown_to_html",
+                "function": "typed_params",
+                "params": [ 30, 12 ],
                 "routes": [
                     {
                         "name": "baby-test",
@@ -72,6 +97,8 @@
             },
             {
                 "name": "tester",
+                "function": "parse_markdown",
+                "params": [ "post.md" ],
                 "file": "tester.html",
                 "routes": []
             }

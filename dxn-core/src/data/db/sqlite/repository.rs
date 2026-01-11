@@ -1,8 +1,5 @@
 
-    use std::io;
-
     use rusqlite::{params, Connection, Result, Row};
-    use serde_rusqlite::to_params;
 
     //use crate::data::models::{Item, Person};
     use crate::data::db::models::{DbColumn};

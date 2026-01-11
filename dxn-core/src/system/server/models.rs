@@ -5,6 +5,7 @@ use uuid::Uuid;
 use std::sync::{Mutex, RwLock};
 use std::vec::Vec;
 use std::collections::HashMap;
+use crate::functions::models::{ParamTypes};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")] // Optional: if JSON keys are camelCase
@@ -26,5 +27,16 @@ pub struct SystemServerModel {
 pub struct SystemServerRoute {
     pub(crate) name: String,
     pub(crate) file: String,
+    pub(crate) function: Option<String>,
     pub(crate) routes: Option<Vec<SystemServerRoute>>
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")] // Optional: if JSON keys are camelCase
+pub struct FlattenRoutePath {
+    pub(crate) name: String,
+    pub(crate) file: String,
+    pub(crate) function: Option<String>,
+    pub(crate) params: Option<Vec<ParamTypes>>,
+}
+ 

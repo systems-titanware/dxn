@@ -29,3 +29,7 @@ where
     let data: T = serde_json::from_reader(file).expect("Failed to deserialize JSON from file");
     Ok(data)
 }
+
+#[cfg(test)]
+#[path = "json.test.rs"]
+mod tests;

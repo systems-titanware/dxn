@@ -1,6 +1,4 @@
-use std::io::Stderr;
-use std::process::Command;
-use crate::integrations::models::{SystemIntegrations, SystemIntegrationModel, IntegrationError};
+use crate::integrations::models::{SystemIntegrationModel, IntegrationError};
 
 // tcp_client_app/src/main.rs
 use dxn_shared::{RequestMessage, ResponseMessage};
@@ -69,8 +67,8 @@ pub fn run(integration_name: &str, command: &str, args: Option<&str>) -> Result<
     
 }
 
-
-pub async fn run_new(integration_name: &str, command: &str, args: Option<&str>) {
+/* 
+pub async fn run_tcp(integration_name: &str, command: &str, args: Option<&str>) {
     unsafe {
         let matched_integration = PUBLIC_INTEGRATIONS
         .iter()
@@ -113,7 +111,7 @@ pub async fn run_new(integration_name: &str, command: &str, args: Option<&str>) 
     }
     
 }
-
+*/
 pub fn init(integration: SystemIntegrationModel) {
     let path: String = format!("{}/{}", SHARED_FILES_PATH, &integration.path);
     // Create list of integration run-times
@@ -134,7 +132,7 @@ pub fn init(integration: SystemIntegrationModel) {
 }
 
 
-
+/*
 async fn run_tcp() -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = TcpStream::connect("0.0.0.0:8080").await?;
     println!("Client connected to server!");
@@ -160,3 +158,4 @@ async fn run_tcp() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+    */

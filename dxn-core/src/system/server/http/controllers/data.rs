@@ -12,14 +12,14 @@ use std::collections::HashMap;
 use serde_json::{json, Value, Map};
 
 // HELPER FUNCTIONS
-fn remove_last_char(s: &str) -> &str {
+pub(crate) fn remove_last_char(s: &str) -> &str {
     match s.char_indices().next_back() {
         Some((i, _)) => &s[..i], // Slice from the beginning up to the start of the last char
         None => s, // If the string is empty, return it as is
     }
 }
 
-fn get_object_from_path(full_path: &str) -> &str {
+pub(crate) fn get_object_from_path(full_path: &str) -> &str {
     let parts: Vec<&str> = full_path.split('/').collect();
     let slice = &parts[..4]; // slice1 will be &[20, 30, 40]
 
@@ -53,7 +53,7 @@ pub async fn get(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
 }
 
 /// Maps a rusqlite::Row to a serde_json::Value::Object.
-fn row_to_json_value(row: &Row) -> Result<Value> {
+pub(crate) fn row_to_json_value(row: &Row) -> Result<Value> {
     let mut map = Map::new();
     // Get column names from the statement associated with the row
     let statement = row.as_ref();
@@ -262,3 +262,7 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
     );
     */
 }
+
+#[cfg(test)]
+#[path = "data.test.rs"]
+mod tests;

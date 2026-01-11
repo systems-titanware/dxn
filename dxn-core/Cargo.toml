@@ -2,6 +2,7 @@
 name = "dxn"
 version = "0.0.2"
 edition = "2021"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 actix-web = "4.12.0"
@@ -14,6 +15,10 @@ chrono = "0.4"
 dxn_proc_macros = { path = "../dxn_proc_macros" }
 dxn_shared = { path = "../dxn_shared" }
 tokio = { version = "1.48.0" }
+wasmtime = { version="39.0.1" }
+anyhow = "1.0"
+
 [dependencies.rusqlite]
 version = "0.37.0"
 features = ["bundled"]
+

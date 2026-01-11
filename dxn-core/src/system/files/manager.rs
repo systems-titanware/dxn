@@ -59,7 +59,7 @@ pub fn add_file(path: &str) -> io::Result<()> {
     }
 }
 
-fn get_full_path(path: &str) -> PathBuf {
+pub(crate) fn get_full_path(path: &str) -> PathBuf {
     let mut full_path = PathBuf::new();
     full_path.push(ROOT_FILE_PATH);
     full_path.push(Path::new(path));
@@ -71,3 +71,7 @@ pub fn add_dir(path: &str) -> io::Result<()> {
     fs::create_dir_all(full_path)?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "manager.test.rs"]
+mod tests;

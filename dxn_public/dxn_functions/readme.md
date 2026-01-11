@@ -1,14 +1,12 @@
-#Installation
-1. Install PostgreSQL@18 via homebrew via `brew install postgresql@18`
-2. Run via `brew services start postgresql@18`
-
 ## setup
 1. Install llvm `brew install llvm`
 2. Download rustup `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-3. Download rustup analyzer `rustup component add rust-analyzer`
 2.1. If rust was installed with brew, uninstall it `brew uninstall rust`
 3. run `. "$HOME/.cargo/env"`
-4. run `export AR=/usr/bin/ar`
+3. run `rustup target add wasm32-unknown-unknown`
 
 ## commands 
-4. `cargo build`
+5. `cd ../dxn_public/dxn_functions/
+    cargo build --target wasm32-unknown-unknown --release
+    cd ../../dxn-core`
+ 
