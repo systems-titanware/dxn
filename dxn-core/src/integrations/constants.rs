@@ -1,1 +1,1 @@
-pub const SHARED_FILES_PATH: &str = "../dxn_public";
+pub const SHARED_FILES_PATH: &str = "../dxn-files";

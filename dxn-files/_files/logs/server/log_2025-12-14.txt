@@ -1,0 +1,134 @@
+[2025-12-14 00:00:12.658773 UTC] OK: App initialized
+[2025-12-14 00:00:15.734881 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:00:37.268997 UTC] OK: App initialized
+[2025-12-14 00:00:40.423499 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:03:09.694266 UTC] OK: App initialized
+[2025-12-14 00:03:12.399724 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:03:50.823390 UTC] OK: App initialized
+[2025-12-14 00:03:53.607434 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:04:11.809462 UTC] OK: App initialized
+[2025-12-14 00:04:14.397060 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 00:04:25.988251 UTC] OK: App initialized
+[2025-12-14 00:04:28.409866 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 00:04:55.183195 UTC] OK: App initialized
+[2025-12-14 00:04:57.776137 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 00:05:24.212612 UTC] OK: App initialized
+[2025-12-14 00:05:26.612658 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 00:05:36.177712 UTC] OK: App initialized
+[2025-12-14 00:05:38.342799 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 00:06:47.577373 UTC] OK: App initialized
+[2025-12-14 00:06:50.718648 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:23:19.271116 UTC] OK: App initialized
+[2025-12-14 00:23:22.638594 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:23:50.896574 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:23:55.733257 UTC] OK: App initialized
+[2025-12-14 00:23:58.549509 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:23:59.498464 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:24:47.044399 UTC] OK: App initialized
+[2025-12-14 00:24:49.305416 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:28:14.480163 UTC] OK: App initialized
+[2025-12-14 00:28:18.167711 UTC] OK: App initialized
+[2025-12-14 00:28:20.481202 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:32:02.146061 UTC] OK: App initialized
+[2025-12-14 00:32:05.823731 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:36:19.598514 UTC] OK: App initialized
+[2025-12-14 00:36:24.156211 UTC] OK: App initialized
+[2025-12-14 00:36:26.772337 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:37:20.827950 UTC] OK: App initialized
+[2025-12-14 00:37:24.032816 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 00:38:16.343351 UTC] OK: App initialized
+[2025-12-14 00:38:19.554093 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 05:31:27.566005 UTC] OK: App initialized
+[2025-12-14 05:31:30.948031 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 05:32:41.271789 UTC] OK: App initialized
+[2025-12-14 08:18:35.712784 UTC] OK: App initialized
+[2025-12-14 08:19:01.104862 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:19:16.055424 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:19:24.042722 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:23:08.982599 UTC] OK: App initialized
+[2025-12-14 08:23:12.807277 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:26:42.382123 UTC] OK: App initialized
+[2025-12-14 08:26:45.358169 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:27:50.344650 UTC] OK: App initialized
+[2025-12-14 08:27:53.013646 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:38:23.848131 UTC] OK: App initialized
+[2025-12-14 08:38:25.418283 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:39:08.570503 UTC] OK: App initialized
+[2025-12-14 08:39:11.986341 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 08:39:45.640904 UTC] OK: App initialized
+[2025-12-14 08:39:47.915869 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:40:32.324940 UTC] OK: App initialized
+[2025-12-14 08:40:37.138757 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:40:52.008439 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:43:44.157269 UTC] OK: App initialized
+[2025-12-14 08:43:46.249186 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:44:14.229671 UTC] OK: App initialized
+[2025-12-14 08:44:17.163650 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:52:50.607369 UTC] OK: App initialized
+[2025-12-14 08:52:55.670561 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:53:19.635037 UTC] OK: App initialized
+[2025-12-14 08:53:22.613308 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:54:37.360754 UTC] OK: App initialized
+[2025-12-14 08:54:41.881530 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 08:55:05.899628 UTC] OK: App initialized
+[2025-12-14 08:55:08.415012 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:55:09.518303 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 08:55:19.025190 UTC] OK: App initialized
+[2025-12-14 08:55:21.524871 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:32:40.040638 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:33:51.358219 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:37:13.088448 UTC] OK: App initialized
+[2025-12-14 17:37:27.962070 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:37:49.506329 UTC] OK: App initialized
+[2025-12-14 17:37:53.247742 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:42:01.872413 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:45:35.379611 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 17:56:16.150353 UTC] OK: App initialized
+[2025-12-14 17:56:20.097013 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 17:58:52.413759 UTC] OK: App initialized
+[2025-12-14 17:58:54.757729 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 17:58:54.758023 UTC] ERR: Error loading path ../../dxn_public/routes/post.md, RunTime("cargo run failed: integrations/parser Output { status: ExitStatus(unix_wait_status(25856)), stdout: \"\", stderr: \"   Compiling parser v0.1.0 (/Users/home/Projects/dxn/dxn_public/integrations/parser)\\nwarning: unused imports: `ErrorKind` and `Error`\\n  --> src/main.rs:11:15\\n   |\\n11 | use std::io::{Error, ErrorKind};\\n   |               ^^^^^  ^^^^^^^^^\\n   |\\n   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\\n\\nwarning: unused import: `std::process::ExitCode`\\n  --> src/main.rs:12:5\\n   |\\n12 | use std::process::ExitCode;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `serde_json::Result`\\n  --> src/main.rs:15:5\\n   |\\n15 | use serde_json::Result; // Use serde_json::Result for convenient error handling\\n   |     ^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `std::process::Termination`\\n  --> src/main.rs:16:5\\n   |\\n16 | use std::process::Termination;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^\\n\\nerror[E0277]: the trait bound `for<'a> StrSearcher<'a, '_>: DoubleEndedSearcher<'a>` is not satisfied\\n  --> src/main.rs:39:51\\n   |\\n39 |     let clean_str = args[2].as_str().trim_matches(\\\"\\\\\\\"\\\");\\n   |                                      ------------ ^^^^ the trait `for<'a> DoubleEndedSearcher<'a>` is not implemented for `StrSearcher<'a, '_>`\\n   |                                      |\\n   |                                      required by a bound introduced by this call\\n   |\\n   = help: the following other types implement trait `DoubleEndedSearcher<'a>`:\\n             CharArrayRefSearcher<'a, 'b, N>\\n             CharArraySearcher<'a, N>\\n             CharPredicateSearcher<'a, F>\\n             CharSearcher<'a>\\n             CharSliceSearcher<'a, 'b>\\nnote: required by a bound in `core::str::<impl str>::trim_matches`\\n  --> /private/tmp/rust-20251113-8447-hxwdfq/rustc-1.91.1-src/library/core/src/str/mod.rs:2334:5\\n\\nFor more information about this error, try `rustc --explain E0277`.\\nwarning: `parser` (bin \\\"parser\\\") generated 4 warnings\\nerror: could not compile `parser` (bin \\\"parser\\\") due to 1 previous error; 4 warnings emitted\\n\" }")
+[2025-12-14 17:59:29.599736 UTC] OK: App initialized
+[2025-12-14 17:59:31.624615 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 17:59:31.624948 UTC] ERR: Error loading path ../../dxn_public/routes/post.md, RunTime("cargo run failed: integrations/parser Output { status: ExitStatus(unix_wait_status(25856)), stdout: \"\", stderr: \"   Compiling parser v0.1.0 (/Users/home/Projects/dxn/dxn_public/integrations/parser)\\nwarning: unused imports: `ErrorKind` and `Error`\\n  --> src/main.rs:11:15\\n   |\\n11 | use std::io::{Error, ErrorKind};\\n   |               ^^^^^  ^^^^^^^^^\\n   |\\n   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\\n\\nwarning: unused import: `std::process::ExitCode`\\n  --> src/main.rs:12:5\\n   |\\n12 | use std::process::ExitCode;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `serde_json::Result`\\n  --> src/main.rs:15:5\\n   |\\n15 | use serde_json::Result; // Use serde_json::Result for convenient error handling\\n   |     ^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `std::process::Termination`\\n  --> src/main.rs:16:5\\n   |\\n16 | use std::process::Termination;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^\\n\\nerror[E0277]: the trait bound `for<'a> StrSearcher<'a, '_>: DoubleEndedSearcher<'a>` is not satisfied\\n  --> src/main.rs:39:42\\n   |\\n39 |     let clean_str = args[2].trim_matches(\\\"\\\\\\\"\\\").as_str();\\n   |                             ------------ ^^^^ the trait `for<'a> DoubleEndedSearcher<'a>` is not implemented for `StrSearcher<'a, '_>`\\n   |                             |\\n   |                             required by a bound introduced by this call\\n   |\\n   = help: the following other types implement trait `DoubleEndedSearcher<'a>`:\\n             CharArrayRefSearcher<'a, 'b, N>\\n             CharArraySearcher<'a, N>\\n             CharPredicateSearcher<'a, F>\\n             CharSearcher<'a>\\n             CharSliceSearcher<'a, 'b>\\nnote: required by a bound in `core::str::<impl str>::trim_matches`\\n  --> /private/tmp/rust-20251113-8447-hxwdfq/rustc-1.91.1-src/library/core/src/str/mod.rs:2334:5\\n\\nerror[E0658]: use of unstable library feature `str_as_str`\\n  --> src/main.rs:39:48\\n   |\\n39 |     let clean_str = args[2].trim_matches(\\\"\\\\\\\"\\\").as_str();\\n   |                                                ^^^^^^\\n   |\\n   = note: see issue #130366 <https://github.com/rust-lang/rust/issues/130366> for more information\\n\\nSome errors have detailed explanations: E0277, E0658.\\nFor more information about an error, try `rustc --explain E0277`.\\nwarning: `parser` (bin \\\"parser\\\") generated 4 warnings\\nerror: could not compile `parser` (bin \\\"parser\\\") due to 2 previous errors; 4 warnings emitted\\n\" }")
+[2025-12-14 18:01:45.228622 UTC] OK: App initialized
+[2025-12-14 18:01:46.950788 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:01:59.149048 UTC] OK: App initialized
+[2025-12-14 18:02:03.511938 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 18:02:03.512235 UTC] ERR: Error loading path ../../dxn_public/routes/post.md, RunTime("cargo run failed: integrations/parser Output { status: ExitStatus(unix_wait_status(25856)), stdout: \"\", stderr: \"   Compiling parser v0.1.0 (/Users/home/Projects/dxn/dxn_public/integrations/parser)\\nwarning: unused imports: `ErrorKind` and `Error`\\n  --> src/main.rs:11:15\\n   |\\n11 | use std::io::{Error, ErrorKind};\\n   |               ^^^^^  ^^^^^^^^^\\n   |\\n   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\\n\\nwarning: unused import: `std::process::ExitCode`\\n  --> src/main.rs:12:5\\n   |\\n12 | use std::process::ExitCode;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `serde_json::Result`\\n  --> src/main.rs:15:5\\n   |\\n15 | use serde_json::Result; // Use serde_json::Result for convenient error handling\\n   |     ^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `std::process::Termination`\\n  --> src/main.rs:16:5\\n   |\\n16 | use std::process::Termination;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^\\n\\nerror[E0061]: this method takes 2 arguments but 1 argument was supplied\\n  --> src/main.rs:39:38\\n   |\\n39 |     let clean_str = args[2].as_str().replace('\\\\\\\"');\\n   |                                      ^^^^^^^------ argument #2 of type `&str` is missing\\n   |\\nnote: method defined here\\n  --> /private/tmp/rust-20251113-8447-hxwdfq/rustc-1.91.1-src/library/alloc/src/str.rs:268:12\\nhelp: provide the argument\\n   |\\n39 |     let clean_str = args[2].as_str().replace('\\\\\\\"', /* &str */);\\n   |                                                  ++++++++++++\\n\\nerror[E0308]: mismatched types\\n   --> src/main.rs:40:46\\n    |\\n 40 |     let parser = pulldown_cmark::Parser::new(clean_str);\\n    |                  --------------------------- ^^^^^^^^^ expected `&str`, found `String`\\n    |                  |\\n    |                  arguments to this function are incorrect\\n    |\\nnote: associated function defined here\\n   --> /Users/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pulldown-cmark-0.13.0/src/parse.rs:250:12\\n    |\\n250 |     pub fn new(text: &'input str) -> Self {\\n    |            ^^^\\nhelp: consider borrowing here\\n    |\\n 40 |     let parser = pulldown_cmark::Parser::new(&clean_str);\\n    |                                              +\\n\\nSome errors have detailed explanations: E0061, E0308.\\nFor more information about an error, try `rustc --explain E0061`.\\nwarning: `parser` (bin \\\"parser\\\") generated 4 warnings\\nerror: could not compile `parser` (bin \\\"parser\\\") due to 2 previous errors; 4 warnings emitted\\n\" }")
+[2025-12-14 18:02:04.559967 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 18:02:04.560352 UTC] ERR: Error loading path ../../dxn_public/routes/post.md, RunTime("cargo run failed: integrations/parser Output { status: ExitStatus(unix_wait_status(25856)), stdout: \"\", stderr: \"   Compiling parser v0.1.0 (/Users/home/Projects/dxn/dxn_public/integrations/parser)\\nwarning: unused imports: `ErrorKind` and `Error`\\n  --> src/main.rs:11:15\\n   |\\n11 | use std::io::{Error, ErrorKind};\\n   |               ^^^^^  ^^^^^^^^^\\n   |\\n   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\\n\\nwarning: unused import: `std::process::ExitCode`\\n  --> src/main.rs:12:5\\n   |\\n12 | use std::process::ExitCode;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `serde_json::Result`\\n  --> src/main.rs:15:5\\n   |\\n15 | use serde_json::Result; // Use serde_json::Result for convenient error handling\\n   |     ^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `std::process::Termination`\\n  --> src/main.rs:16:5\\n   |\\n16 | use std::process::Termination;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^\\n\\nerror[E0061]: this method takes 2 arguments but 1 argument was supplied\\n  --> src/main.rs:39:38\\n   |\\n39 |     let clean_str = args[2].as_str().replace('\\\\\\\"');\\n   |                                      ^^^^^^^------ argument #2 of type `&str` is missing\\n   |\\nnote: method defined here\\n  --> /private/tmp/rust-20251113-8447-hxwdfq/rustc-1.91.1-src/library/alloc/src/str.rs:268:12\\nhelp: provide the argument\\n   |\\n39 |     let clean_str = args[2].as_str().replace('\\\\\\\"', /* &str */);\\n   |                                                  ++++++++++++\\n\\nerror[E0308]: mismatched types\\n   --> src/main.rs:40:46\\n    |\\n 40 |     let parser = pulldown_cmark::Parser::new(clean_str);\\n    |                  --------------------------- ^^^^^^^^^ expected `&str`, found `String`\\n    |                  |\\n    |                  arguments to this function are incorrect\\n    |\\nnote: associated function defined here\\n   --> /Users/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pulldown-cmark-0.13.0/src/parse.rs:250:12\\n    |\\n250 |     pub fn new(text: &'input str) -> Self {\\n    |            ^^^\\nhelp: consider borrowing here\\n    |\\n 40 |     let parser = pulldown_cmark::Parser::new(&clean_str);\\n    |                                              +\\n\\nSome errors have detailed explanations: E0061, E0308.\\nFor more information about an error, try `rustc --explain E0061`.\\nwarning: `parser` (bin \\\"parser\\\") generated 4 warnings\\nerror: could not compile `parser` (bin \\\"parser\\\") due to 2 previous errors; 4 warnings emitted\\n\" }")
+[2025-12-14 18:02:28.407659 UTC] OK: App initialized
+[2025-12-14 18:02:30.912072 UTC] ERR: cargo run failed: integrations/parser
+[2025-12-14 18:02:30.912351 UTC] ERR: Error loading path ../../dxn_public/routes/post.md, RunTime("cargo run failed: integrations/parser Output { status: ExitStatus(unix_wait_status(25856)), stdout: \"\", stderr: \"   Compiling parser v0.1.0 (/Users/home/Projects/dxn/dxn_public/integrations/parser)\\nwarning: unused imports: `ErrorKind` and `Error`\\n  --> src/main.rs:11:15\\n   |\\n11 | use std::io::{Error, ErrorKind};\\n   |               ^^^^^  ^^^^^^^^^\\n   |\\n   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\\n\\nwarning: unused import: `std::process::ExitCode`\\n  --> src/main.rs:12:5\\n   |\\n12 | use std::process::ExitCode;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `serde_json::Result`\\n  --> src/main.rs:15:5\\n   |\\n15 | use serde_json::Result; // Use serde_json::Result for convenient error handling\\n   |     ^^^^^^^^^^^^^^^^^^\\n\\nwarning: unused import: `std::process::Termination`\\n  --> src/main.rs:16:5\\n   |\\n16 | use std::process::Termination;\\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^\\n\\nerror[E0061]: this method takes 2 arguments but 1 argument was supplied\\n  --> src/main.rs:39:29\\n   |\\n39 |     let clean_str = args[2].replace('\\\\\\\"').as_str();\\n   |                             ^^^^^^^------ argument #2 of type `&str` is missing\\n   |\\nnote: method defined here\\n  --> /private/tmp/rust-20251113-8447-hxwdfq/rustc-1.91.1-src/library/alloc/src/str.rs:268:12\\nhelp: provide the argument\\n   |\\n39 |     let clean_str = args[2].replace('\\\\\\\"', /* &str */).as_str();\\n   |                                         ++++++++++++\\n\\nFor more information about this error, try `rustc --explain E0061`.\\nwarning: `parser` (bin \\\"parser\\\") generated 4 warnings\\nerror: could not compile `parser` (bin \\\"parser\\\") due to 1 previous error; 4 warnings emitted\\n\" }")
+[2025-12-14 18:03:57.642729 UTC] OK: App initialized
+[2025-12-14 18:04:00.145500 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:04:34.426039 UTC] OK: App initialized
+[2025-12-14 18:04:35.937122 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:04:58.354980 UTC] OK: App initialized
+[2025-12-14 18:05:00.016428 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:05:57.614086 UTC] OK: App initialized
+[2025-12-14 18:06:00.121199 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:07:51.816842 UTC] OK: App initialized
+[2025-12-14 18:07:53.823350 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:08:49.879224 UTC] OK: App initialized
+[2025-12-14 18:08:51.977916 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:10:24.957325 UTC] OK: App initialized
+[2025-12-14 18:10:27.689195 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:10:28.880098 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:11:46.510429 UTC] OK: App initialized
+[2025-12-14 18:11:48.762028 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:12:27.504065 UTC] OK: App initialized
+[2025-12-14 18:12:29.814285 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:12:31.253286 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:13:50.838855 UTC] OK: App initialized
+[2025-12-14 18:13:53.976595 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:14:08.019706 UTC] OK: App initialized
+[2025-12-14 18:14:10.115524 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:14:11.444536 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:15:06.362767 UTC] OK: App initialized
+[2025-12-14 18:15:08.776031 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:15:11.275912 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:15:25.348793 UTC] OK: App initialized
+[2025-12-14 18:15:27.711813 UTC] OK: cargo run success: integrations/parser
+[2025-12-14 18:15:37.613326 UTC] OK: App initialized

@@ -19,8 +19,16 @@ pub struct SystemIntegrations {
 #[serde(rename_all = "camelCase")] // Optional: if JSON keys are camelCase
 pub struct SystemIntegrationModel {
     pub(crate) name: String,
-    pub(crate) path: String,
     pub(crate) version: String,
+
+    // For local integrations (backward compatible)
+    pub(crate) path: String,
+
+    // For remote integrations
+    pub(crate) integration_type: IntegrationType,
+    pub(crate) service_name: String,
+    pub(crate) url: Option<String>,
+
     pub(crate) functions: Vec<SystemIntegrationFunction>
 }
  
@@ -31,6 +39,105 @@ pub struct SystemIntegrationFunction {
     //pub(crate) params: Option<Vec<String>>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum IntegrationType{
+    Local,
+    Remote
+}
+
+// New: Service Mesh Configuration
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServiceMeshConfig {
+    #[serde(default)]
+    pub(crate) registry_url: Option<String>,
+    #[serde(default)]
+    pub(crate) local_services: Option<Vec<LocalService>>,
+    #[serde(default)]
+    pub(crate) public_services: Option<Vec<PublicServiceConfig>>,
+    #[serde(default)]
+    pub(crate) discovery_interval: Option<u64>, // seconds
+}
+
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct LocalService {
+    pub(crate) name: String,
+    pub(crate) url: String,
+    pub(crate) service_type: String,  // "ai", "wallet", "vault", etc.
+    pub(crate) capabilities: Vec<String>,
+    #[serde(default)]
+    pub(crate) auth: Option<ServiceAuth>,
+    #[serde(default)]
+    pub(crate) health_check: Option<String>, // Health check endpoint
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PublicServiceConfig {
+    pub(crate) name: String,
+    pub(crate) discover_from: String, // "registry"
+    pub(crate) filter: ServiceFilter,
+    #[serde(default)]
+    pub(crate) preferred_versions: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServiceFilter {
+    #[serde(default)]
+    pub(crate) service_type: Option<String>,
+    #[serde(default)]
+    pub(crate) public: Option<bool>,
+    #[serde(default)]
+    pub(crate) capabilities: Option<Vec<String>>,
+    #[serde(default)]
+    pub(crate) min_version: Option<String>,
+    #[serde(default)]
+    pub(crate) owner: Option<String>, // UUID
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServiceAuth {
+    pub(crate) auth_type: String, // "oauth", "api_key", "none"
+    #[serde(default)]
+    pub(crate) client_id: Option<String>,
+    #[serde(default)]
+    pub(crate) token: Option<String>,
+    #[serde(default)]
+    pub(crate) scopes: Option<Vec<String>>,
+}
+
+
+// Service Registry Models
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServiceRegistryEntry {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) url: String,
+    pub(crate) service_type: String,
+    pub(crate) public: bool,
+    pub(crate) owner: String,
+    pub(crate) capabilities: Vec<String>,
+    pub(crate) version: String,
+    pub(crate) health: ServiceHealth,
+    pub(crate) endpoints: ServiceEndpoints,
+    #[serde(default)]
+    pub(crate) auth_required: bool,
+    #[serde(default)]
+    pub(crate) scopes: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum ServiceHealth {
+    Healthy,
+    Unhealthy,
+    Unknown,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServiceEndpoints {
+    pub(crate) api: String,
+    pub(crate) discovery: String,
+    pub(crate) health: Option<String>,
+}
 
 // 1. Define the custom error enum and derive Debug for easy printing during development.
 #[derive(Debug)]

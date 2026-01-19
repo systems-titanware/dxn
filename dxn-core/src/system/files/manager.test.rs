@@ -4,7 +4,7 @@ use std::path::Path;
 
 // Helper function to create a temporary test directory
 fn setup_test_env() -> io::Result<()> {
-    let test_dir = Path::new("../dxn_public/_files/test");
+    let test_dir = Path::new("../dxn-files/_files/test");
     if test_dir.exists() {
         fs::remove_dir_all(test_dir)?;
     }
@@ -14,7 +14,7 @@ fn setup_test_env() -> io::Result<()> {
 
 // Helper function to cleanup test directory
 fn cleanup_test_env() -> io::Result<()> {
-    let test_dir = Path::new("../dxn_public/_files/test");
+    let test_dir = Path::new("../dxn-files/_files/test");
     if test_dir.exists() {
         fs::remove_dir_all(test_dir)?;
     }

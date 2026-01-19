@@ -54,6 +54,12 @@ DXN is a Rust-based web server framework that allows you to:
    cargo run
    ```
 
+
+Simple
+
+cargo build --manifest-path './dxn-functions/Cargo.toml' --target wasm32-unknown-unknown --release | cargo build --manifest-path './dxn-core/Cargo.toml' | cargo run --manifest-path './dxn-core/Cargo.toml'
+
+
 The server will start on `http://127.0.0.1:8080`
 
 ---

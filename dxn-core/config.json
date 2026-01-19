@@ -1,10 +1,57 @@
 {
+
+    "serviceMesh": {
+        "registryUrl": "https://registry.dxn.io",
+        "discoveryInterval": 300,
+        "localServices": [
+            {
+                "name": "my_ai",
+                "url": "https://my-ai.example.com",
+                "serviceType": "ai",
+                "capabilities": ["text_generation", "sentiment_analysis"],
+                "auth": {
+                    "authType": "oauth",
+                    "clientId": "my-server-client-id"
+                },
+                "healthCheck": "/api/health"
+            },
+            {
+                "name": "my_wallet",
+                "url": "https://my-wallet.example.com",
+                "serviceType": "wallet",
+                "capabilities": ["zksync", "ethereum"],
+                "healthCheck": "/api/health"
+            }
+        ],
+        "publicServices": [
+            {
+                "name": "public_zksync",
+                "discoverFrom": "registry",
+                "filter": {
+                    "serviceType": "zksync",
+                    "public": true,
+                    "capabilities": ["bridge", "swap"]
+                }
+            },
+            {
+                "name": "public_ai",
+                "discoverFrom": "registry",
+                "filter": {
+                    "serviceType": "ai",
+                    "public": true,
+                    "capabilities": ["llm"]
+                }
+            }
+        ]
+    },
     "integrations": {
         "public": [
             {
                 "name": "wallet",
                 "path": "integrations/parser",
                 "version": "1",
+                "integrationType": "Local",
+                "serviceName": "zksync",
                 "owner": "UUID",
                 "functions": [
                     {
@@ -20,6 +67,8 @@
                 "name": "parser",
                 "path": "integrations/parser",
                 "version": "1",
+                "integrationType": "Local",
+                "serviceName": "parser",
                 "owner": "UUID",
                 "functions": [
                     {
@@ -35,6 +84,8 @@
                 "name": "llm",
                 "path": "integrations/parser",
                 "owner": "UUID",
+                "integrationType": "Local",
+                "serviceName": "huggingface",
                 "version": "1",
                 "functions": [
                     {
@@ -53,30 +104,27 @@
             {
                 "name": "no_params",
                 "version": 1,
-                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "path": "../dxn-functions/target/wasm32-unknown-unknown/release/dxn-functions.wasm",
                 "functionName": "no_params"
             },
             {
                 "name": "no_params_with_result",
                 "version": 1,
-                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "path": "../dxn-functions/target/wasm32-unknown-unknown/release/dxn-functions.wasm",
                 "functionName": "no_params_with_result"
             },
             {
                 "name": "serialized_params",
                 "version": 1,
-                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "path": "../dxn-functions/target/wasm32-unknown-unknown/release/dxn-functions.wasm",
                 "functionName": "serialized_params"
             },
             {
                 "name": "typed_params",
                 "version": 1,
-                "path": "../dxn_public/dxn_functions/target/wasm32-unknown-unknown/release/dxn_functions.wasm",
+                "path": "../dxn-functions/target/wasm32-unknown-unknown/release/dxn-functions.wasm",
                 "functionName": "typed_params",
-                "parameters": [ 
-                    "i32", "i32"
-                ],
-                "return": "i32"
+                "parameters": [ "i32", "i32" ]
             }
         ]
     },
@@ -86,7 +134,7 @@
                 "name": "test",
                 "file": "post.md",
                 "function": "typed_params",
-                "params": [ 30, 12 ],
+                "params": [ 30, 32 ],
                 "routes": [
                     {
                         "name": "baby-test",

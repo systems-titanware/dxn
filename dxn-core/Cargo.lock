@@ -682,7 +682,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dxn"
+name = "dxn_core"
 version = "0.0.2"
 dependencies = [
  "actix-server",
@@ -690,7 +690,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "dxn_proc_macros",
- "dxn_shared",
  "rusqlite",
  "serde",
  "serde_json",
@@ -706,13 +705,6 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
-]
-
-[[package]]
-name = "dxn_shared"
-version = "0.1.0"
-dependencies = [
- "serde",
 ]
 
 [[package]]

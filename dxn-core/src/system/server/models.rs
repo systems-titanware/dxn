@@ -28,6 +28,7 @@ pub struct SystemServerRoute {
     pub(crate) name: String,
     pub(crate) file: String,
     pub(crate) function: Option<String>,
+    pub(crate) params: Option<Vec<serde_json::Value>>, // Add this!
     pub(crate) routes: Option<Vec<SystemServerRoute>>
 }
 
@@ -37,6 +38,6 @@ pub struct FlattenRoutePath {
     pub(crate) name: String,
     pub(crate) file: String,
     pub(crate) function: Option<String>,
-    pub(crate) params: Option<Vec<ParamTypes>>,
+    pub(crate) params: Option<Vec<serde_json::Value>>,
 }
  

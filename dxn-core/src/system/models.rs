@@ -6,7 +6,7 @@ use std::vec::Vec;
 use crate::data::models::{SystemData};
 use crate::functions::models::{SystemFunctions};
 use crate::system::server::models::{SystemServer};
-use crate::integrations::models::{SystemIntegrations};
+use crate::integrations::models::{SystemIntegrations, ServiceMeshConfig};
 use std::fmt;
 use std::error::Error;
 
@@ -26,7 +26,9 @@ pub struct System {
     pub(crate) data: SystemData,
     pub(crate) server: SystemServer,
     pub(crate) integrations: SystemIntegrations,
-    pub(crate) functions: SystemFunctions
+    pub(crate) functions: SystemFunctions,
+    #[serde(default)]
+    pub(crate) service_mesh: Option<ServiceMeshConfig>, // New
 }
 use wasmtime::Error as WasmtimeError;
 

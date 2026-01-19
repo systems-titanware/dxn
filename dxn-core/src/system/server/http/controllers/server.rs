@@ -70,10 +70,10 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
             
             match &route_item.function {
                 Some(function) => {
-                    println!("RUNNING {} {}", route_item.name, function);
-                    //let params: Vec<crate::functions::models::ParamTypes> = route_item.params;
-
-                  //  let tuple = params.first().convert_to_tuple();
+                    let params: Vec<serde_json::Value> = route_item.params.clone().unwrap_or_default();
+                    println!("server.rs/{}/ -> PROCESSOR {}, params {:?}", route_item.name, function, params);
+                    let test: (i32, i32, i32, i32, i32, i32) = (1, 5, 2, 123, 32, 22);
+                    // let tuple = params.first().convert_to_tuple();
 
                     let res: Result<i32, wasmtime::Error> = crate::functions::manager::run(function.as_str(), (32, 44));
 
@@ -181,7 +181,7 @@ pub fn recursively_flatten_routes(route: SystemServerRoute, map: &mut HashMap<St
         name: route.name,
         file: route.file.clone(),
         function: route.function.clone(),
-        params: None,
+        params: route.params.clone(),
     };
     //map.insert(path.clone(), route.file.clone());
 

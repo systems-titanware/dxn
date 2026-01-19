@@ -1,5 +1,6 @@
 use serde::Deserialize;
-use crate::integrations::{manager};
+//use dxn_core::integrations::{manager};
+//use dxn_core::system::files::{manager};
 
 #[derive(Deserialize)]
 struct Config {
@@ -45,6 +46,8 @@ pub extern "C" fn typed_params(left: i32, right: i32) -> i32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn parse_markdown(path: String) -> String {
+    println!("parse_markdown {}", path);
+    /*
     // Placeholder implementation for parsing markdown
     let file = crate::system::files::manager::read_file(&path).unwrap_or(String::from("err"));
     
@@ -52,6 +55,8 @@ pub extern "C" fn parse_markdown(path: String) -> String {
     let processed_markdown: std::result::Result<String, integrations::models::IntegrationError> = integrations::manager::run("parser", "parse", Some(&file));
     processed_markdown.unwrap_or(String::from("err"));
     //format!("Parsed markdown: {}", markdown)
+    */
+
 }
 
 /*

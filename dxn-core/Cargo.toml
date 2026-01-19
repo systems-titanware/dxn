@@ -1,5 +1,5 @@
 [package]
-name = "dxn"
+name = "dxn_core"
 version = "0.0.2"
 edition = "2021"
 crate-type = ["cdylib", "rlib"]
@@ -13,7 +13,6 @@ uuid = { version = "1.18.1", features = ["v7", "serde"] }
 serde_rusqlite = { version = "0.40.1" }
 chrono = "0.4"
 dxn_proc_macros = { path = "../dxn_proc_macros" }
-dxn_shared = { path = "../dxn_shared" }
 tokio = { version = "1.48.0" }
 wasmtime = { version="39.0.1" }
 anyhow = "1.0"
