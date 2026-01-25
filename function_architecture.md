@@ -43,7 +43,7 @@
 
 **Phase 3: Optional Scripts**
 - Add scripting support (if needed)
-- Lua or JavaScript runtime
+- JavaScript/TypeScript runtime (QuickJS + SWC)
 - For quick iteration and simple logic
 - Optional feature, not required
 
@@ -70,7 +70,7 @@ pub enum FunctionType {
     Wasm,      // Current: WASM modules (default, shareable)
     Native,    // New: Native Rust dynamic libraries
     Remote,    // New: Remote function servers
-    Script,    // Optional: Scripting languages (Lua/JS)
+    Script,    // Optional: Scripting languages (JavaScript/TypeScript)
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -101,7 +101,7 @@ pub struct SystemFunctionModel {
     #[serde(default)]
     pub(crate) script_path: Option<String>,  // Path to script file
     #[serde(default)]
-    pub(crate) script_language: Option<String>, // "lua", "javascript"
+    pub(crate) script_language: Option<String>, // "javascript", "typescript"
     
     pub(crate) version: u32,
     #[serde(default)]
@@ -290,21 +290,21 @@ async fn generate_function(req: web::Json<FunctionRequest>) -> impl Responder {
 {
     "name": "simple_transform",
     "functionType": "script",
-    "scriptPath": "../dxn_public/scripts/transform.lua",
-    "scriptLanguage": "lua",
+    "scriptPath": "../dxn_public/scripts/transform.ts",
+    "scriptLanguage": "typescript",
     "version": 1,
     "parameters": ["String"],
     "return": "String"
 }
 ```
 
-**Lua Script:**
-```lua
--- transform.lua
-function simple_transform(input)
-    -- Simple transformation logic
-    return string.upper(input) .. " processed"
-end
+**TypeScript Script:**
+```typescript
+// transform.ts
+export function simpleTransform(input: string): string {
+    // Simple transformation logic with type safety
+    return input.toUpperCase() + " processed";
+}
 ```
 
 ---
@@ -346,8 +346,8 @@ end
 **Goal:** Add scripting language support
 
 **Tasks:**
-1. Choose scripting language (Lua recommended)
-2. Embed interpreter (mlua for Lua)
+1. Embed JavaScript runtime (QuickJS)
+2. Add TypeScript transpilation (SWC)
 3. Implement script executor
 4. Sandboxing for security
 5. API bindings for server functions
@@ -459,46 +459,54 @@ impl RemoteExecutor {
 
 ## Script Function Implementation Details
 
-### Lua Executor Example
+### JavaScript/TypeScript Executor Example
 
 ```rust
-// In functions/script_executor.rs
+// In functions/executors.rs
 
-use mlua::{Lua, Result as LuaResult};
+use rquickjs::{Context, Runtime};
+use swc_ecma_parser::{Parser, StringInput, Syntax, TsConfig};
+use swc_ecma_transforms::typescript;
+use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 
-pub struct ScriptExecutor {
-    lua: Lua,
-}
-
-impl ScriptExecutor {
-    pub fn new() -> Self {
-        ScriptExecutor {
-            lua: Lua::new()
-        }
-    }
+pub async fn execute_script(
+    function: &SystemFunctionModel,
+    params: &[serde_json::Value]
+) -> Result<serde_json::Value, FunctionError> {
+    let script_path = function.script_path.as_ref()?;
+    let function_name = function.function_name.as_ref()?;
     
-    pub fn load_script(&mut self, script_path: &str) -> LuaResult<()> {
-        let script = std::fs::read_to_string(script_path)?;
-        self.lua.load(&script).exec()?;
-        Ok(())
-    }
+    let script_content = fs::read_to_string(script_path)?;
     
-    pub fn call_function(
-        &self,
-        function_name: &str,
-        params: &[serde_json::Value]
-    ) -> Result<serde_json::Value, FunctionError> {
-        let globals = self.lua.globals();
-        let func: mlua::Function = globals.get(function_name)?;
+    // Transpile TypeScript to JavaScript if needed
+    let js_code = if script_path.ends_with(".ts") {
+        transpile_typescript(&script_content)?
+    } else {
+        script_content
+    };
+    
+    // Create QuickJS runtime
+    let rt = Runtime::new()?;
+    let ctx = Context::full(&rt)?;
+    
+    ctx.with(|ctx| {
+        // Execute script
+        ctx.eval::<_, ()>(&js_code)?;
         
-        // Convert params to Lua values
-        let lua_params: Vec<mlua::Value> = params.iter()
-            .map(|v| json_to_lua_value(&self.lua, v))
+        // Get function from exports or global scope
+        let func: rquickjs::Function = ctx.global().get(function_name)?;
+        
+        // Convert params to JS values
+        let js_params: Vec<rquickjs::Value> = params.iter()
+            .map(|v| json_to_js_value(ctx, v))
             .collect();
         
-        let result = func.call(lua_params)?;
-        Ok(lua_value_to_json(result))
-    }
+        // Call function
+        let result = func.call((js_params,))?;
+        
+        // Convert result back to JSON
+        js_value_to_json(result)
+    })
 }
 ```
 
@@ -595,8 +603,8 @@ impl ScriptExecutor {
 {
     "name": "quick_transform",
     "functionType": "script",
-    "scriptPath": "../dxn_public/scripts/transform.lua",
-    "scriptLanguage": "lua"
+    "scriptPath": "../dxn_public/scripts/transform.ts",
+    "scriptLanguage": "typescript"
 }
 ```
 
@@ -751,11 +759,11 @@ async fn my_function(req: web::Json<FunctionRequest>) -> impl Responder {
 ```
 
 ### Writing Script Functions
-```lua
--- Simple Lua script
-function my_function(input)
-    return "Processed: " .. input
-end
+```typescript
+// Simple TypeScript script
+export function myFunction(input: string): string {
+    return "Processed: " + input;
+}
 ```
 
 ---
@@ -813,7 +821,7 @@ end
 
 **Phase 3 (Optional):**
 - Add scripting support
-- Lua or JavaScript runtime
+- JavaScript/TypeScript runtime (QuickJS + SWC)
 - Sandboxing and security
 
 This hybrid approach provides maximum flexibility while maintaining the benefits of WASM for shareability and security.
@@ -984,50 +992,51 @@ pub extern "C" fn custom_processing(input: String) -> String {
 
 ---
 
-## Option 4: Scripting Languages (Lua, JavaScript, Python)
+## Option 4: Scripting Languages (JavaScript/TypeScript)
 
 ### How It Works
-- Embed scripting language runtime (e.g., mlua for Lua, v8 for JavaScript)
-- Functions written in scripts
+- Embed JavaScript runtime (QuickJS) with TypeScript transpilation (SWC)
+- Functions written in JavaScript or TypeScript
 - Executed by embedded interpreter
-- Stored as text files
+- Stored as text files (.js or .ts)
 
 ### Pros
 - ✅ **No Compilation** - Write and run immediately
 - ✅ **Fast Iteration** - Quick to modify and test
-- ✅ **Easy to Write** - Simpler syntax for simple logic
+- ✅ **TypeScript Support** - Type safety with TypeScript
+- ✅ **Popular Language** - JavaScript/TypeScript is widely known
 - ✅ **Text-Based** - Easy to version control
 - ✅ **Good for Prototyping** - Quick to experiment
+- ✅ **Rich Ecosystem** - Can leverage JavaScript patterns
 
 ### Cons
 - ❌ **Performance Overhead** - Interpreter overhead
 - ❌ **Security Concerns** - Requires sandboxing
-- ❌ **Additional Dependencies** - Need to embed runtime
-- ❌ **Limited Type Safety** - Runtime errors
-- ❌ **Debugging Challenges** - Script debugging can be harder
-- ❌ **Limited Ecosystem** - Can't use full Rust ecosystem
+- ❌ **Additional Dependencies** - Need to embed runtime (QuickJS + SWC)
+- ❌ **Binary Size** - Adds ~2-3MB to binary (when feature enabled)
+- ❌ **Limited JS Features** - QuickJS supports ES2020, not latest features
 
 ### Use Case
-**Best for:** Simple, frequently-modified functions, quick prototyping
+**Best for:** Simple, frequently-modified functions, quick prototyping, when TypeScript type safety is desired
 
 **Example:**
 ```json
 {
     "name": "simple_transform",
     "functionType": "script",
-    "scriptPath": "../dxn_public/scripts/transform.lua",
-    "scriptLanguage": "lua",
+    "scriptPath": "../dxn_public/scripts/transform.ts",
+    "scriptLanguage": "typescript",
     "parameters": ["String"],
     "return": "String"
 }
 ```
 
-**Lua Script Example:**
-```lua
--- transform.lua
-function simple_transform(input)
-    return string.upper(input)
-end
+**TypeScript Script Example:**
+```typescript
+// transform.ts
+export function simpleTransform(input: string): string {
+    return input.toUpperCase();
+}
 ```
 
 ---

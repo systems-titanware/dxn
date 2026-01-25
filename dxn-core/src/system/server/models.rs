@@ -27,8 +27,8 @@ pub struct SystemServerModel {
 pub struct SystemServerRoute {
     pub(crate) name: String,
     pub(crate) file: String,
-    pub(crate) function: Option<String>,
-    pub(crate) params: Option<Vec<serde_json::Value>>, // Add this!
+    #[serde(default)]
+    pub(crate) layout: Option<String>,  // Layout file path (e.g., "global.layout.html")
     pub(crate) routes: Option<Vec<SystemServerRoute>>
 }
 
@@ -37,7 +37,7 @@ pub struct SystemServerRoute {
 pub struct FlattenRoutePath {
     pub(crate) name: String,
     pub(crate) file: String,
-    pub(crate) function: Option<String>,
-    pub(crate) params: Option<Vec<serde_json::Value>>,
+    #[serde(default)]
+    pub(crate) layout: Option<String>,  // Layout file path
 }
  

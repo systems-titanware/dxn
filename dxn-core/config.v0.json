@@ -1,46 +1,58 @@
 {
-
-    "serviceMesh": {
-        "registryUrl": "https://registry.dxn.io",
-        "discoveryInterval": 300,
-        "localServices": [
+    "integrations": {
+        "public": [
             {
-                "name": "my_ai",
-                "url": "http://127.0.0.1:8081",
-                "serviceType": "ai",
-                "capabilities": ["text_generation", "sentiment_analysis"],
-                "healthCheck": "/api/health"
+                "name": "wallet",
+                "path": "integrations/parser",
+                "version": "1",
+                "integrationType": "Local",
+                "serviceName": "zksync",
+                "owner": "UUID",
+                "functions": [
+                    {
+                        "name": "parse_html",
+                        "params": {
+                            "parameter1": "hello world"
+                        }
+                    }
+                ],
+                "crates": "zksync"
             },
             {
-                "name": "my_wallet",
-                "url": "https://my-wallet.example.com",
-                "serviceType": "wallet",
-                "capabilities": ["zksync", "ethereum"],
-                "healthCheck": "/api/health"
-            }
-        ],
-        "publicServices": [
-            {
-                "name": "public_zksync",
-                "discoverFrom": "registry",
-                "filter": {
-                    "serviceType": "zksync",
-                    "public": true,
-                    "capabilities": ["bridge", "swap"]
-                }
+                "name": "parser",
+                "path": "integrations/parser",
+                "version": "1",
+                "integrationType": "Local",
+                "serviceName": "parser",
+                "owner": "UUID",
+                "functions": [
+                    {
+                        "name": "parse_html",
+                        "params": {
+                            "parameter1": "hello world"
+                        }
+                    }
+                ],
+                "crates": "html2markdown"
             },
             {
-                "name": "public_ai",
-                "discoverFrom": "registry",
-                "filter": {
-                    "serviceType": "ai",
-                    "public": true,
-                    "capabilities": ["llm"]
-                }
+                "name": "llm",
+                "path": "integrations/parser",
+                "owner": "UUID",
+                "integrationType": "Local",
+                "serviceName": "huggingface",
+                "version": "1",
+                "functions": [
+                    {
+                        "name": "parse_html",
+                        "params": {
+                            "parameter1": "hello world"
+                        }
+                    }
+                ],
+                "crates": "huggingface"
             }
         ]
-    },
-    "integrations": {
     },
     "functions": {
         "public": [
@@ -57,7 +69,7 @@
                 "name": "wallet_get_balance_native",
                 "functionType": "native",
                 "version": 1,
-                "libraryPath": "./dxn-native-wallet/target/release/libdxn_native_wallet.so",
+                "libraryPath": "../dxn-native-wallet/target/release/libdxn_native_wallet.so",
                 "symbolName": "get_balance",
                 "parameters": ["String"],
                 "return": "String"
@@ -75,7 +87,7 @@
                 "name": "wallet_transform_address",
                 "functionType": "script",
                 "version": 1,
-                "scriptPath": "./dxn-files/scripts/wallet_transform.ts",
+                "scriptPath": "../dxn-files/scripts/wallet_transform.ts",
                 "scriptLanguage": "typescript",
                 "functionName": "transformAddress",
                 "parameters": ["String"],
@@ -85,25 +97,9 @@
                 "name": "typed_params",
                 "functionType": "wasm",
                 "version": 1,
-                "path": "./dxn-wasm-parser/target/wasm32-unknown-unknown/release/dxn_wasm_parser.wasm",
+                "path": "../dxn-functions/target/wasm32-unknown-unknown/release/dxn-functions.wasm",
                 "functionName": "typed_params",
                 "parameters": [ "i32", "i32" ]
-            },
-            {
-                "name": "parse_markdown",
-                "functionType": "wasm",
-                "version": 1,
-                "path": "./dxn-wasm-parser/target/wasm32-unknown-unknown/release/dxn_wasm_parser.wasm",
-                "functionName": "parse_markdown",
-                "parameters": [ "String" ]
-            },
-            {
-                "name": "add_numbers",
-                "functionType": "wasm",
-                "version": 1,
-                "path": "./dxn-wasm-parser/target/wasm32-unknown-unknown/release/dxn_wasm_parser.wasm",
-                "functionName": "add_numbers",
-                "parameters": ["i32", "i32"]
             }
         ]
     },
@@ -111,21 +107,22 @@
         "public": [
             {
                 "name": "test",
-                "file": "home.html",
-                "layout": "global.layout.html",
+                "file": "post.md",
+                "function": "typed_params",
+                "params": [ 30, 32 ],
                 "routes": [
                     {
                         "name": "baby-test",
                         "file": "subpage.html",
-                        "layout": "global.layout.html",
                         "routes": []
                     }
                 ]
             },
             {
                 "name": "tester",
+                "function": "parse_markdown",
+                "params": [ "post.md" ],
                 "file": "tester.html",
-                "layout": "global.layout.html",
                 "routes": []
             }
         ]

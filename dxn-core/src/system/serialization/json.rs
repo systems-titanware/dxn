@@ -7,8 +7,7 @@ use std::io;
 use serde::de::DeserializeOwned;
 
 
-pub fn read_as_string() -> Result<String, std::io::Error> {
-    let file_path = "./config.json".to_string();
+pub fn read_as_string(file_path: String) -> Result<String, std::io::Error> {
     let file = File::open(file_path.clone()).expect("Failed to open file");
 
     let content = fs::read_to_string(file_path.clone())?;
@@ -22,6 +21,7 @@ pub fn deserialize<T>(file_path: String) -> Result<T, serde_json::Error>
 where
     T: DeserializeOwned,
     {
+    println!("Deserializing file: {:?}", file_path);
     let file = File::open(file_path).expect("Failed to open file");
 
     // read_as_string();

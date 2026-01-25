@@ -150,8 +150,7 @@ async fn main() -> std::io::Result<()> {
 
     logger::log("App initialized");
     // DATA
-    
-    let file_path = "./config.json".to_string();
+    let file_path = "./dxn-core/config.json".to_string();
     
     let system_data = system::serialization::json::deserialize::<System>(file_path);
     
@@ -190,6 +189,9 @@ async fn main() -> std::io::Result<()> {
             // Configure routes from my_module under a specific scope
             .service(web::scope("/api/data")
                 .configure(|cfg| { system::server::http::controllers::data::config(cfg, app.system.data.clone())})
+            )
+            .service(web::scope("/api/function")
+                .configure(|cfg| { system::server::http::controllers::function::config(cfg, app.system.functions.clone())})
             )
             .service(web::scope("/server")
                 .configure(|cfg| system::server::http::controllers::server::config(cfg, app.system.server.clone()))

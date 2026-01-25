@@ -234,10 +234,16 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
                             .route("/list", web::get().to(list))
                             .route("/{id}", web::get().to(get))
                             .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
-                            //Person
                             .route("/{id}", web::put().to(put::<HashMap<String, serde_json::Value>>))
                             .route("/{id}", web::delete().to(delete))
                             .route("/db/migrate/{version}", web::post().to(post::<HashMap<String, serde_json::Value>>))
+
+                            .route("/list/", web::get().to(list))
+                            .route("/{id}/", web::get().to(get))
+                            .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
+                            .route("/{id}/", web::put().to(put::<HashMap<String, serde_json::Value>>))
+                            .route("/{id}/", web::delete().to(delete))
+                            .route("/db/migrate/{version}/", web::post().to(post::<HashMap<String, serde_json::Value>>))
                             //.route("/echo", web::post().to(echo))
                     );
                 }

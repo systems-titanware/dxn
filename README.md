@@ -1,20 +1,21 @@
 # DXN (Delta Network)
 
-**Self-hosted data management and web server platform built with Rust**
+**Self-hosted data management and web server platform with service mesh connectivity**
 
-DXN enables individuals to easily manage and share their own data with others, without a third-party middleman. Configure your server via JSON/YAML, define custom business logic, integrate with third-party systems, and share resources with other servers.
+DXN enables you to host your own server that connects with a mesh of other servers through P2P-based connections. Configure data models, functions, and services via JSON, customize your server's behavior, and securely access resources from other servers using OAuth scopes.
 
 ---
 
 ## Overview
 
-DXN is a Rust-based web server framework that allows you to:
+DXN is a Rust-based web server framework that provides:
 
-- **Own Your Data**: Host your own server and maintain complete control over your data
-- **Customize Easily**: Define custom functions (business logic) and integrations (third-party systems) using configuration files and your own source code
-- **Share Resources**: Borrow functions, integrations, and data from other servers (with OAuth-based authorization coming soon)
+- **Self-Hosted Server**: Host your own server with complete control over your data
+- **Service Mesh Architecture**: Connect to other servers via P2P-based service mesh for distributed functionality
+- **Config-Driven Customization**: Define data models, functions, and integrations through JSON configuration
 - **Auto-Generated APIs**: Automatically create REST endpoints for CRUD operations on your data models
-- **Flexible Web Routes**: Build web applications with server routes that can call functions, render templates, and process data
+- **Flexible Functions**: Support for WASM, Native Rust, Remote HTTP, and Script-based functions
+- **Secure Resource Sharing**: Access other servers' functions, integrations, and data using OAuth scopes (planned)
 
 ---
 
@@ -42,9 +43,9 @@ DXN is a Rust-based web server framework that allows you to:
 
 3. Build functions (WASM modules):
    ```bash
-   cd ../dxn_public/dxn_functions
+   cd ../dxn-wasm-parser
    cargo build --target wasm32-unknown-unknown --release
-   cd ../../dxn-core
+   cd ../dxn-core
    ```
 
 4. Configure your server by editing `config.json` (see [Framework.md](./Framework.md) for details)
@@ -54,77 +55,161 @@ DXN is a Rust-based web server framework that allows you to:
    cargo run
    ```
 
+**Note:** Cloud registration and mobile client workflow are planned features. Currently, servers are set up manually via configuration files.
 
-Simple
 
-cargo build --manifest-path './dxn-functions/Cargo.toml' --target wasm32-unknown-unknown --release | cargo build --manifest-path './dxn-core/Cargo.toml' | cargo run --manifest-path './dxn-core/Cargo.toml'
+## Ongoing runtime steps
+
+### Building WASM Functions
+
+Build WASM function modules (using wasm-bindgen):
+
+```bash
+# Build dxn-functions WASM module
+cargo build --manifest-path './dxn-functions/Cargo.toml' --target wasm32-unknown-unknown --release
+
+# Build dxn-wasm-wallet WASM module (example)
+cargo build --manifest-path './dxn-wasm-wallet/Cargo.toml' --target wasm32-unknown-unknown --release
+```
+
+### Building and Running the Core Server
+
+```bash
+# Build the core server
+cargo build --manifest-path './dxn-core/Cargo.toml'
+
+# Run the server
+cargo run --manifest-path './dxn-core/Cargo.toml'
+```
+
+### Quick Build and Run (All Steps)
+
+```bash
+# Build WASM functions, then build and run core server
+cargo build --manifest-path './dxn-wasm-parser/Cargo.toml' --target wasm32-unknown-unknown --release && \
+cargo build --manifest-path './dxn-core/Cargo.toml' && \
+cargo run --manifest-path './dxn-core/Cargo.toml'
+```
 
 
 The server will start on `http://127.0.0.1:8080`
 
 ---
 
+## Server Spin-Up Workflow (Planned) 📋
+
+**Cloud Registration & Mobile Setup:**
+1. Register an account via third-party cloud service
+2. Login to your account via the mobile client app
+3. Spin up a new server from the mobile app
+4. Enter a shared secret between client and server
+5. Server is created and encrypted based on the shared secret
+
+**Server Configuration:**
+- Customize data models, functions, and integrations via `config.json`
+- Connect to other servers in the service mesh
+- Access resources from other servers using OAuth scopes
+- Preload data into KeyVault on initialization or via mobile app
+- Servers operate based on CQRS principles with data models
+
+---
+
 ## Architecture
 
-DXN consists of three main components:
+### Service Mesh Architecture
 
-### `dxn-core`
-The core server application that:
+DXN servers operate in a distributed service mesh where:
+- **Primary Server**: Your main server that connects to clients
+- **Local Services**: Your own specialized servers (AI, wallet, vault, etc.)
+- **Public Services**: Discovered from service registry (other users' servers)
+- **P2P Connections**: Servers communicate via service mesh for distributed functionality
+- **Service Discovery**: Automatic discovery and registration of services
+- **Health Monitoring**: Continuous health checks and automatic failover
+
+### Core Components
+
+**`dxn-core`**
+- Core server application
 - Reads configuration from `config.json`
 - Initializes database schemas (SQLite)
 - Creates REST API endpoints for data models
-- Manages and executes functions (WASM modules)
-- Manages and executes integrations (Rust crates)
+- Manages and executes functions (WASM, Native, Remote, Script)
+- Manages integrations (local and remote via service mesh)
 - Serves web routes with template rendering
 
-### `dxn_public`
-Shared folder containing:
-- **Functions**: WASM modules (`dxn_functions/`) compiled to `wasm32-unknown-unknown`
-- **Integrations**: Rust crates (`integrations/`) for third-party system connections
-- **Files**: Static assets and templates (`routes/`, `assets/`, `_files/`)
+**`dxn_public`** (or `dxn-files`)
+- Shared folder containing:
+  - Functions: WASM modules, native libraries, scripts
+  - Integrations: Rust crates for third-party systems
+  - Files: Static assets, templates, routes
 
-### `dxn_shared`
-Shared library for communication protocols and common types used across components.
+**`dxn-shared`**
+- Shared library for communication protocols and common types
 
 ---
 
 ## Key Features
 
-### 1. Data Models
-Define data schemas in `config.json` to automatically generate:
-- Database tables (SQLite, with public/private database separation)
-- REST API endpoints (`/api/data/{model_name}/`)
-- CRUD operations (Create, Read, Update, Delete)
+### Current Features ✅
 
-### 2. Functions
-Write custom business logic as WASM modules:
-- Compile Rust code to WebAssembly
-- Call functions from server routes
-- Pass typed parameters (integers, floats, strings, booleans, enums)
-- Return typed results
+**Data Models**
+- Define schemas in `config.json` to auto-generate database tables and REST APIs
+- Public/private database separation
+- Automatic CRUD endpoints (`/api/data/{model_name}/`)
 
-### 3. Integrations
-Connect to third-party systems:
-- Write Rust crates for external integrations
-- Compile and execute as separate processes
-- Call integration functions from your functions or server routes
-- Support for TCP-based communication
+**Functions**
+- Multiple execution types: WASM, Native Rust, Remote HTTP, Script (TypeScript/JavaScript)
+- Call from server routes or API endpoints
+- Pass typed parameters and return results
 
-### 4. Server Routes
-Build web applications:
+**Integrations**
+- Local integrations: Rust crates for third-party systems
+- Remote integrations: Connect to other servers via service mesh
+- Unified API for both local and remote integrations
+
+**Server Routes**
 - Define routes in `config.json`
-- Render HTML templates
+- Render HTML templates with Handlebars
 - Call functions to process data before rendering
 - Nested route structures
 
-### 5. Public vs Private Definitions
-- **Public**: Shareable with other servers (functions, integrations, data models)
-- **Private**: Only usable by the hosting server
+**Vault System**
+- Encrypted key-value storage for sensitive data
+- Reference vault values in data model definitions
+- Automatic encryption at rest
 
-### 6. Server-to-Server Borrowing (Future)
-- Borrow functions, integrations, and data from other servers
-- OAuth-based authorization (coming soon)
-- Automatic scope generation for secure access
+**Service Mesh**
+- P2P-based connections between servers
+- Service discovery and registration
+- Health monitoring and routing
+
+### Planned Features 📋
+
+**CQRS (Command Query Responsibility Segregation)**
+- Automatically generated from CRUD events for all data models specified in the data config
+- Separate command and query models for optimized data access
+- Servers operate based on CQRS principles with data models
+
+**OAuth Scopes**
+- Access other servers' functions, integrations, and data using OAuth scopes
+- Automatic scope generation for all public definitions
+- Secure, scoped access control
+- When accessing another server's files, they are copied into the manifest on both servers
+
+**KeyVault**
+- Built-in key-value store in each server
+- Data preloaded into KeyVault on app initialization, or via the client/mobile app
+- Enhanced encryption and access management
+
+**ZKSync Wallet Integration**
+- Access requests to other services/functions/data using wallet trade capabilities
+- Cryptocurrency-based access control
+
+**Mobile Client & Cloud Registration**
+- Register account via third-party cloud
+- Login via mobile client
+- Spin up new servers from mobile app
+- Server encryption based on shared secrets
 
 ---
 
@@ -132,10 +217,11 @@ Build web applications:
 
 DXN is configured via `config.json` in the `dxn-core` directory. The configuration includes:
 
-- **Data**: Database models (public/private)
-- **Functions**: WASM function definitions (public/private)
-- **Integrations**: Integration definitions (public/private)
+- **Data**: Database models (public/private) - CQRS automatically generated from CRUD events
+- **Functions**: Function definitions (WASM, Native, Remote, Script) - public/private
+- **Integrations**: Integration definitions (local and remote) - public/private
 - **Server**: Web route definitions (public/private)
+- **Service Mesh**: Local and public service configurations for distributed architecture
 
 See [Framework.md](./Framework.md) for detailed configuration examples and technical documentation.
 
@@ -159,25 +245,41 @@ See [Framework.md](./Framework.md) for detailed configuration examples and techn
 We believe in **ownership of your own data**. Rather than having a third-party company manage your contacts, data, and other important aspects of your life, you should be able to own this data by default and merely opt-in or opt-out of when a business, family member, friend, or colleague should have access to it.
 
 DXN gives you:
-- **Control**: Host your own server or use managed hosting
+- **Control**: Host your own server with complete data ownership
 - **Flexibility**: Customize with your own code and configurations
 - **Privacy**: Keep sensitive data private while sharing what you choose
-- **Interoperability**: Share and borrow resources from other DXN servers
+- **Interoperability**: Connect to a mesh of other servers via service mesh
+- **Distributed Architecture**: Run specialized services (AI, wallet, vault) across multiple servers
+- **Secure Sharing**: Access other servers' resources using OAuth scopes (planned)
 
 ---
 
 ## Project Status
 
-- ✅ Core server with REST APIs
-- ✅ Data model definitions and auto-generated CRUD endpoints
-- ✅ WASM-based function system
-- ✅ Rust crate-based integration system
-- ✅ Server routes with template rendering
-- ✅ Public/private definition separation
-- 🚧 Server-to-server borrowing (basic structure in place)
-- 📋 OAuth-based authorization (planned)
-- 📋 Automatic scope generation (planned)
-- 📋 IDP (Identity Provider) integration (planned)
+### Implemented ✅
+- Core server with REST APIs
+- Data model definitions and auto-generated CRUD endpoints
+- Function system (WASM, Native, Remote, Script)
+- Integration system (local and remote via service mesh)
+- Server routes with template rendering (Handlebars)
+- Public/private definition separation
+- Vault system for encrypted key-value storage
+- Service mesh architecture (basic structure)
+
+### In Progress 🚧
+- Service mesh discovery and routing enhancements
+- Remote integration calls via HTTP
+
+### Planned 📋
+- CQRS automatically generated from CRUD events
+- OAuth-based authorization and scope management
+- Automatic scope generation for public definitions
+- KeyVault with preloaded data on initialization
+- ZKSync wallet integration for access requests
+- Mobile client application
+- Third-party cloud registration
+- Server encryption based on shared secrets
+- IDP (Identity Provider) integration
 
 ---
 

@@ -12,7 +12,9 @@ use crate::functions::models::{EnumParamTypes};
 use serde::{Deserialize, Serialize};
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
 use std::collections::HashMap;
+use std::path::PathBuf;
 use serde_json::{json, Value, Map};
+use handlebars::Handlebars;
 use crate::system::server::constants::{SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, GLOBAL_BASE_ROUTE_PATH};
 
 fn get_html_404() -> &'static str {
@@ -62,51 +64,89 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
             // If route has file, read file
             // If route has function, run function
 
-            let path = format!("{}/{}/{}", SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, route_item.file);
-            let file = crate::system::files::manager::read_file(&path).unwrap_or(String::from("err"));
-            
-            // Process Markdown to html
-            let processed_markdown: std::result::Result<String, integrations::models::IntegrationError> = integrations::manager::run("parser", "parse", Some(&file));
-            
-            match &route_item.function {
-                Some(function) => {
-                    let params: Vec<serde_json::Value> = route_item.params.clone().unwrap_or_default();
-                    println!("server.rs/{}/ -> PROCESSOR {}, params {:?}", route_item.name, function, params);
-                    let test: (i32, i32, i32, i32, i32, i32) = (1, 5, 2, 123, 32, 22);
-                    // let tuple = params.first().convert_to_tuple();
-
-                    let res: Result<i32, wasmtime::Error> = crate::functions::manager::run(function.as_str(), (32, 44));
-
-                    match res {
-                        Ok(ress) => {
-                            println!("RUN, {:?}", ress);
-                        },
-                        Err(err) => {
-
-                            println!("ERR, {:?}", err);
-                        }
-                    }
-                    println!("RUN COMPLETE");
-                },
-                None => {
-
-                }
-            }
-
-            // return contents
-            let content: &str = match processed_markdown {
-                Ok(content) => {
-                    // Return file content
-                    let clean_str = String::from(content.clone().replace("\\n", "\n").replace("\"", ""));
-                    return HttpResponse::Ok().content_type("text/html").body(clean_str)
-                },
-                Err(err) => {
-                    // Return error
-                    println!("500: {:?}", err);
-                    crate::system::logger::log_error(format!("Error loading path {}, {:?}", path, err).as_str());
-                    return HttpResponse::Ok().content_type("text/html").body(get_html_500())
+            // Construct path to routes file (routes are in dxn-files/routes/, not dxn-files/_files/)
+            let routes_path = format!("{}/{}", GLOBAL_ROUTES_PATH, route_item.file);
+            let full_path = match PathBuf::from(format!("./dxn-files/{}", routes_path)).canonicalize() {
+                Ok(path) => path,
+                Err(e) => {
+                    println!("500: Failed to resolve path: {:?}", e);
+                    crate::system::logger::log_error(format!("Failed to resolve absolute path for {}: {}", routes_path, e).as_str());
+                    return HttpResponse::Ok().content_type("text/html").body(get_html_500());
                 }
             };
+                
+            // Load page content
+            // Note: We don't escape Alpine.js expressions here because Handlebars triple braces {{{content}}}
+            // should render raw HTML. However, if Handlebars still tries to parse expressions in attributes,
+            // we may need to use a different approach.
+            let page_content = match std::fs::read_to_string(&full_path) {
+                Ok(content) => content,
+                Err(err) => {
+                    println!("500: {:?}", err);
+                    crate::system::logger::log_error(format!("Error loading path {}, {:?}", full_path.display(), err).as_str());
+                    return HttpResponse::Ok().content_type("text/html").body(get_html_500());
+                }
+            };
+            
+            // Check if layout is specified
+            let final_content = if let Some(layout_file) = &route_item.layout {
+                // Load layout file
+                let layout_path = format!("{}/{}", GLOBAL_ROUTES_PATH, layout_file);
+                let layout_full_path = match PathBuf::from(format!("./dxn-files/{}", layout_path)).canonicalize() {
+                    Ok(path) => path,
+                    Err(e) => {
+                        println!("500: Failed to resolve layout path: {:?}", e);
+                        crate::system::logger::log_error(format!("Failed to resolve layout path {}: {}", layout_path, e).as_str());
+                        // Fallback to page content without layout
+                        return HttpResponse::Ok().content_type("text/html").body(page_content);
+                    }
+                };
+                
+                // Load layout template
+                match std::fs::read_to_string(&layout_full_path) {
+                    Ok(layout_template) => {
+                        // First, do simple string replacement for content to avoid Handlebars parsing Alpine.js
+                        // Replace {{{content}}} with actual content before Handlebars processes it
+                        let layout_with_content = layout_template.replace("{{{content}}}", &page_content);
+                        
+                        // Render template with Handlebars (only for title and other simple variables)
+                        let mut handlebars = Handlebars::new();
+                        handlebars.set_strict_mode(false); // Allow missing variables
+                        
+                        // Prepare template context (Handlebars expects serde_json::Value)
+                        let data = json!({
+                            "title": route_item.name,
+                            "route": {
+                                "name": route_item.name,
+                                "path": full_path.display().to_string()
+                            }
+                        });
+                        
+                        // Render template (content is already inserted, so Handlebars won't parse Alpine.js)
+                        match handlebars.render_template(&layout_with_content, &data) {
+                            Ok(rendered) => rendered,
+                            Err(e) => {
+                                println!("500: Template rendering error: {:?}", e);
+                                crate::system::logger::log_error(format!("Template rendering error: {}", e).as_str());
+                                // Fallback to page content
+                                page_content
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        println!("500: Failed to load layout: {:?}", e);
+                        crate::system::logger::log_error(format!("Failed to load layout {}: {}", layout_full_path.display(), e).as_str());
+                        // Fallback to page content
+                        page_content
+                    }
+                }
+            } else {
+                // No layout specified, return page content directly
+                page_content
+            };
+            
+            // Return rendered content
+            return HttpResponse::Ok().content_type("text/html").body(final_content);
         },
         Error => {
             // Return 404
@@ -180,8 +220,7 @@ pub fn recursively_flatten_routes(route: SystemServerRoute, map: &mut HashMap<St
     let flattened_route = FlattenRoutePath {
         name: route.name,
         file: route.file.clone(),
-        function: route.function.clone(),
-        params: route.params.clone(),
+        layout: route.layout.clone()
     };
     //map.insert(path.clone(), route.file.clone());
 
