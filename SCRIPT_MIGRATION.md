@@ -20,7 +20,7 @@ DXN's script function support has been migrated from Lua to JavaScript/TypeScrip
 ### 2. Code Changes
 
 - **`dxn-core/src/functions/executors.rs`**: Replaced Lua executor with JavaScript/TypeScript executor
-- **`dxn-core/config.json`**: Updated script examples to use TypeScript
+- **`config.json`** (root directory): Updated script examples to use TypeScript
 - **`dxn-files/scripts/`**: Converted Lua scripts to TypeScript
 
 ### 3. Documentation Updated

@@ -24,7 +24,7 @@ and more..
 ### Self-Hosted Setup
 
 1. Clone the repository and build the core server (see [README.md](./README.md) for detailed instructions)
-2. Configure your server by editing `config.json` in the `dxn-core` directory
+2. Configure your server by editing `config.json` in the root directory
 3. Build your functions (WASM modules) and integrations (Rust crates)
 4. Run the server: `cargo run` in the `dxn-core` directory
 5. Access your server at `http://127.0.0.1:8080`

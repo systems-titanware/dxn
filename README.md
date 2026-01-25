@@ -48,7 +48,7 @@ DXN is a Rust-based web server framework that provides:
    cd ../dxn-core
    ```
 
-4. Configure your server by editing `config.json` (see [Framework.md](./Framework.md) for details)
+4. Configure your server by editing `config.json` in the root directory (see [Framework.md](./Framework.md) for details)
 
 5. Run the server:
    ```bash
@@ -107,7 +107,7 @@ The server will start on `http://127.0.0.1:8080`
 5. Server is created and encrypted based on the shared secret
 
 **Server Configuration:**
-- Customize data models, functions, and integrations via `config.json`
+- Customize data models, functions, and integrations via `config.json` in the root directory
 - Connect to other servers in the service mesh
 - Access resources from other servers using OAuth scopes
 - Preload data into KeyVault on initialization or via mobile app
@@ -131,7 +131,7 @@ DXN servers operate in a distributed service mesh where:
 
 **`dxn-core`**
 - Core server application
-- Reads configuration from `config.json`
+- Reads configuration from `config.json` in the root directory
 - Initializes database schemas (SQLite)
 - Creates REST API endpoints for data models
 - Manages and executes functions (WASM, Native, Remote, Script)
@@ -154,7 +154,7 @@ DXN servers operate in a distributed service mesh where:
 ### Current Features ✅
 
 **Data Models**
-- Define schemas in `config.json` to auto-generate database tables and REST APIs
+- Define schemas in `config.json` (root directory) to auto-generate database tables and REST APIs
 - Public/private database separation
 - Automatic CRUD endpoints (`/api/data/{model_name}/`)
 
@@ -169,7 +169,7 @@ DXN servers operate in a distributed service mesh where:
 - Unified API for both local and remote integrations
 
 **Server Routes**
-- Define routes in `config.json`
+- Define routes in `config.json` (root directory)
 - Render HTML templates with Handlebars
 - Call functions to process data before rendering
 - Nested route structures
@@ -216,7 +216,7 @@ DXN servers operate in a distributed service mesh where:
 
 ## Configuration
 
-DXN is configured via `config.json` in the `dxn-core` directory. The configuration includes:
+DXN is configured via `config.json` in the root directory. The configuration includes:
 
 - **Data**: Database models (public/private) - CQRS automatically generated from CRUD events
 - **Functions**: Function definitions (WASM, Native, Remote, Script) - public/private

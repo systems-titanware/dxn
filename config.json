@@ -1,0 +1,192 @@
+{
+    "settings": {
+        "id": "uuid",
+        "slug": "string",
+        "user": "uuid",
+        "admin": "uuid",
+        "manifest": "github/repos/titanware-dev/dxn-manifest/manifest.json"
+    },
+    "private": {
+        "hash": "string",
+        "shared_key": "string",
+        "shared_token": "string",
+        "shared_url": "string",
+        "shared_port": "number",
+        "shared_host": "string",
+        "shared_protocol": "string",
+        "shared_path": "string",
+        "idp_path": "string",
+        "idp_url": "string",
+        "idp_port": "number",
+        "idp_host": "string",
+        "idp_protocol": "string"
+    },
+    "serviceMesh": {
+        "registryUrl": "https://registry.dxn.io",
+        "discoveryInterval": 300,
+        "localServices": [
+            {
+                "name": "my_ai",
+                "url": "http://127.0.0.1:8081",
+                "serviceType": "ai",
+                "capabilities": ["text_generation", "sentiment_analysis"],
+                "healthCheck": "/api/health"
+            },
+            {
+                "name": "my_wallet",
+                "url": "https://my-wallet.example.com",
+                "serviceType": "wallet",
+                "capabilities": ["zksync", "ethereum"],
+                "healthCheck": "/api/health"
+            }
+        ],
+        "publicServices": [
+            {
+                "name": "public_zksync",
+                "discoverFrom": "registry",
+                "filter": {
+                    "serviceType": "zksync",
+                    "public": true,
+                    "capabilities": ["bridge", "swap"]
+                }
+            },
+            {
+                "name": "public_ai",
+                "discoverFrom": "registry",
+                "filter": {
+                    "serviceType": "ai",
+                    "public": true,
+                    "capabilities": ["llm"]
+                }
+            }
+        ]
+    },
+    "integrations": {
+    },
+    "functions": {
+        "public": [
+            {
+                "name": "wallet_get_balance_wasm",
+                "functionType": "wasm",
+                "version": 1,
+                "path": "./dxn-wasm-wallet/target/wasm32-unknown-unknown/release/dxn_wasm_wallet.wasm",
+                "functionName": "get_balance",
+                "parameters": ["String"],
+                "return": "String"
+            },
+            {
+                "name": "wallet_get_balance_native",
+                "functionType": "native",
+                "version": 1,
+                "libraryPath": "./dxn-native-wallet/target/release/libdxn_native_wallet.so",
+                "symbolName": "get_balance",
+                "parameters": ["String"],
+                "return": "String"
+            },
+            {
+                "name": "ai_generate_text",
+                "functionType": "remote",
+                "version": 1,
+                "serviceName": "my_ai",
+                "endpoint": "/api/functions/generate_text",
+                "parameters": ["String"],
+                "return": "String"
+            },
+            {
+                "name": "wallet_transform_address",
+                "functionType": "script",
+                "version": 1,
+                "scriptPath": "./dxn-files/scripts/wallet_transform.ts",
+                "scriptLanguage": "typescript",
+                "functionName": "transformAddress",
+                "parameters": ["String"],
+                "return": "String"
+            },
+            {
+                "name": "typed_params",
+                "functionType": "wasm",
+                "version": 1,
+                "path": "./dxn-wasm-parser/target/wasm32-unknown-unknown/release/dxn_wasm_parser.wasm",
+                "functionName": "typed_params",
+                "parameters": [ "i32", "i32" ]
+            },
+            {
+                "name": "parse_markdown",
+                "functionType": "wasm",
+                "version": 1,
+                "path": "./dxn-wasm-parser/target/wasm32-unknown-unknown/release/dxn_wasm_parser.wasm",
+                "functionName": "parse_markdown",
+                "parameters": [ "String" ]
+            },
+            {
+                "name": "add_numbers",
+                "functionType": "wasm",
+                "version": 1,
+                "path": "./dxn-wasm-parser/target/wasm32-unknown-unknown/release/dxn_wasm_parser.wasm",
+                "functionName": "add_numbers",
+                "parameters": ["i32", "i32"]
+            }
+        ]
+    },
+    "server": {
+        "public": [
+            {
+                "name": "test",
+                "file": "home.html",
+                "layout": "global.layout.html",
+                "routes": [
+                    {
+                        "name": "baby-test",
+                        "file": "subpage.html",
+                        "layout": "global.layout.html",
+                        "routes": []
+                    }
+                ]
+            },
+            {
+                "name": "tester",
+                "file": "tester.html",
+                "layout": "global.layout.html",
+                "routes": []
+            }
+        ]
+    },
+    "data": {
+        "public": [
+            {
+                "name": "profile",
+                "version": 1,
+                "db": "public",
+                "fields": [
+                    {
+                        "name": "email",
+                        "datatype": "text",
+                        "value": "{vault.profile.email}"
+                    },
+                    {
+                        "name": "phone",
+                        "datatype": "text",
+                        "value": "{vault.profile.phone}"
+                    }
+                ]
+            },
+            {
+                "name": "wallet",
+                "version": 1,
+                "db": "private",
+                "fields": [
+                    {
+                        "name": "address",
+                        "datatype": "text",
+                        "value": "{vault.profile.email}"
+                    },
+                    {
+                        "name": "test",
+                        "datatype": "text",
+                        "value": "{vault.profile.phone}"
+                    }
+                ]
+            }
+        ]
+    }
+}

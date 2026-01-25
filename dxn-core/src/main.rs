@@ -150,7 +150,7 @@ async fn main() -> std::io::Result<()> {
 
     logger::log("App initialized");
     // DATA
-    let file_path = "./dxn-core/config.json".to_string();
+    let file_path = "./config.json".to_string();
     
     let system_data = system::serialization::json::deserialize::<System>(file_path);
     
@@ -165,10 +165,7 @@ async fn main() -> std::io::Result<()> {
 
 
     /// DB
-    let file_path = "./config.json".to_string();
-    
-    //let system_data: std::result::Result<System, serde_json::Error> = serialization::json::deserialize::<System>(file_path);
-    //println!("SystemData: {:?}", system_data);
+    // Note: config.json is now loaded above and used for system initialization
  
     // Create DB
     println!("Init -> Database");
