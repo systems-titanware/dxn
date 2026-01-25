@@ -1,222 +1,337 @@
+use rusqlite::{params, Connection, Result, Row};
+use crate::data::db::models::DbColumn;
 
-    use rusqlite::{params, Connection, Result, Row};
+/// SQLite repository for database operations
+/// 
+/// This module provides CRUD operations for SQLite databases with proper
+/// error handling, parameterized queries, and connection management.
 
-    //use crate::data::models::{Item, Person};
-    use crate::data::db::models::{DbColumn};
+// ============================================================================
+// COLUMN HELPERS
+// ============================================================================
 
-    // STRUCTS 
-    
-    // TRAITS
-
-    // IMPLEMENTATIONS 
-
-    // FUNCTIONS
-
-    // Old
-
-    pub fn create_col_primary(name: String, col_type: String) -> DbColumn {
-        DbColumn {
-            name: name,
-            col_type: col_type,
-            value: None,
-            primary_key: Some(true),
-            secondary_key: None,
-            nullable: false,
-            unique: None
-        }
+/// Creates a primary key column definition
+/// 
+/// # Arguments
+/// * `name` - Column name
+/// * `col_type` - SQLite column type (e.g., "INTEGER", "TEXT", "BLOB")
+/// 
+/// # Returns
+/// A `DbColumn` configured as a primary key
+pub fn create_col_primary(name: String, col_type: String) -> DbColumn {
+    DbColumn {
+        name,
+        col_type,
+        value: None,
+        primary_key: Some(true),
+        secondary_key: None,
+        nullable: false,
+        unique: None,
+        default: None,
+        autoincrement: None,
+        check: None,
     }
-    pub fn create_col(name: String, col_type: String, nullable: bool) -> DbColumn {
-        DbColumn {
-            name: name,
-            col_type: col_type,
-            value: None,
-            primary_key: None,
-            secondary_key: None,
-            nullable: nullable,
-            unique: None
-        }
+}
+
+/// Creates a standard column definition
+/// 
+/// # Arguments
+/// * `name` - Column name
+/// * `col_type` - SQLite column type
+/// * `nullable` - Whether the column allows NULL values
+/// 
+/// # Returns
+/// A `DbColumn` with the specified configuration
+pub fn create_col(name: String, col_type: String, nullable: bool) -> DbColumn {
+    DbColumn {
+        name,
+        col_type,
+        value: None,
+        primary_key: None,
+        secondary_key: None,
+        nullable,
+        unique: None,
+        default: None,
+        autoincrement: None,
+        check: None,
     }
+}
 
-    // New
-    
-    pub fn create_dynamic_table(db_name: String, table_name: String, fields: Vec<DbColumn>) -> Result<()> {
-        let conn = Connection::open(format!("{}.db", db_name))?;
+// ============================================================================
+// TABLE OPERATIONS
+// ============================================================================
 
-        let mut columns = String::new();
-        for (i, field) in fields.iter().enumerate() {
-            if let Some(true) = field.primary_key {
-                //id      BLOB PRIMARY KEY NOT NULL,
-                columns.push_str(&format!("{} {} PRIMARY KEY,\n", field.name, field.col_type));
-            }
-            else if let Some(true) = field.secondary_key {
-                columns.push_str(&format!("{} {} SECONDARY KEY,\n", field.name, field.col_type));
-            }
-            else if let Some(true) = field.unique {
-                columns.push_str(&format!("{} {} UNIQUE,\n", field.name, field.col_type));
-            }
-            else if field.nullable == false  {
-                columns.push_str(&format!("{} {} NOT NULL,\n", field.name, field.col_type));
-            }
-            else {
-                columns.push_str(&format!("{} {},\n", field.name, field.col_type));
-            }
-        }
-        // Remove \n
-        columns.pop();
-        // Remove , 
-        columns.pop(); 
+/// Creates a table dynamically based on column definitions
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Name of the table to create
+/// * `fields` - Vector of column definitions
+/// 
+/// # Returns
+/// `Result<()>` indicating success or failure
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if table creation fails
+/// 
+/// # Note
+/// Uses `CREATE TABLE IF NOT EXISTS` to avoid errors on re-runs
+pub fn create_dynamic_table(
+    db_name: String,
+    table_name: String,
+    fields: Vec<DbColumn>,
+) -> Result<()> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
 
-        let str = &format!(
-            "CREATE TABLE IF NOT EXISTS {} (\n{})", table_name, columns);
-        //println!("{}", str);
-        conn.execute(str, [], )?;
-        Ok(())
-    }
-    /*
-    pub fn create_table(db_name: String) -> Result<()> {
-        let conn = Connection::open(format!("{}.db", db_name))?;
+    let mut columns = String::new();
+    for field in fields.iter() {
+        let mut column_def = format!("{} {}", field.name, field.col_type);
         
-        let str = &format!(
-            "create table if not exists {} (
-                id integer primary key,
-                name text not null,
-                country text 
-            )", db_name);
-        conn.execute(str, [], )?;
-        Ok(())
-    }
-    */
-    pub fn insert(db_name: String, table_name: String, keys: Vec<String>, values: Vec<serde_json::Value>) -> Result<usize, rusqlite::Error> {
-        let conn = Connection::open(format!("{}.db", db_name))?;
- 
-        // 1. Convert the Vec<serde_json::Value> into a format rusqlite can use
-        // to_params works with any serde::Serialize type, including Vec<Value>
-        let params_iter = serde_rusqlite::to_params(&values)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-
-        // 2. The SQL query needs a placeholder for each item in the vector.
-        // We generate the SQL dynamically based on the number of values.
-        let placeholders: Vec<String> = (1..=values.len()).map(|i| format!("?{}", i)).collect();
-
-        let query = format!("INSERT INTO {} ({}) VALUES ({})", table_name, keys.join(","), placeholders.join(","));
-        // 2. Execute the query with data parameters bound securely
-        conn.execute(
-            &query,
-            params_iter
-        )
-    }
-
-    pub fn update(db_name: String, table_name: String, id: String, keys: Vec<String>, values: Vec<serde_json::Value>) -> Result<usize, rusqlite::Error> {
-        let conn = Connection::open(format!("{}.db", db_name))?;
- 
-        // 1. Convert the Vec<serde_json::Value> into a format rusqlite can use
-        // to_params works with any serde::Serialize type, including Vec<Value>
-        let params_iter = serde_rusqlite::to_params(&values)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-
-        // 2. The SQL query needs a placeholder for each item in the vector.
-        // We generate the SQL dynamically based on the number of values.
-        let placeholders: Vec<String> = (1..=values.len()).map(|i| format!("?{}", i)).collect();
-
-        let results_vec: Vec<String> = keys
-            .iter() // or .iter_mut(), or .into_iter()
-            .enumerate()
-            .map(|(i, val)| format!("{} = ?{}", val, i+1)) // Use &val if iterating by reference
-            .collect();
-
-        let query = format!("UPDATE {} SET {} where id = {}", table_name, results_vec.join(","), id);
+        // Handle PRIMARY KEY
+        if let Some(true) = field.primary_key {
+            column_def.push_str(" PRIMARY KEY");
+            
+            // AUTOINCREMENT for INTEGER PRIMARY KEY
+            if let Some(true) = field.autoincrement {
+                if field.col_type.to_uppercase().contains("INTEGER") {
+                    column_def.push_str(" AUTOINCREMENT");
+                }
+            }
+            
+            // Primary keys are NOT NULL by default in SQLite
+            column_def.push_str(" NOT NULL");
+        } else {
+            // Handle UNIQUE constraint (only if not primary key)
+            if let Some(true) = field.unique {
+                column_def.push_str(" UNIQUE");
+            }
+            
+            // Handle NOT NULL constraint
+            if !field.nullable {
+                column_def.push_str(" NOT NULL");
+            }
+        }
         
-        // 2. Execute the query with data parameters bound securely
-        conn.execute(
-            &query,
-            params_iter,
-        )
-    }
-
-    pub fn delete(db_name: String, table_name: String, id: u32) -> Result<usize, rusqlite::Error> {
-        let conn = Connection::open(format!("{}.db", db_name))?;
-        let query = format!("DELETE FROM {} WHERE id = ?1", table_name);
-
-        // Insert data into the 'person' table
-        conn.execute(
-            &query,
-            params![id], // Bind parameters using the params! macro
-        )
-    }
-
-    pub fn get<F, T>(db_name: String, table_name: String, id: u32, mapper: F) -> Result<T> 
-    where 
-        F: FnMut(&Row) -> Result<T>,
-        T: Sized,
-    {
-        let conn = Connection::open(format!("{}.db", db_name))?;
-        let query = format!("SELECT * FROM {} WHERE id = ?1", table_name);
-        //let mut stmt = conn.prepare(query)?;
+        // Handle DEFAULT value
+        if let Some(ref default_val) = field.default {
+            // Don't quote if it's a SQL function or expression
+            if default_val.starts_with("CURRENT_") || 
+               default_val.parse::<i64>().is_ok() || 
+               default_val.parse::<f64>().is_ok() {
+                column_def.push_str(&format!(" DEFAULT {}", default_val));
+            } else {
+                // Quote string defaults
+                column_def.push_str(&format!(" DEFAULT '{}'", default_val));
+            }
+        }
         
-        conn.query_row(
-            &query,
-            [id], // Parameters
-            mapper, // Mapper
-        )
-    }
-    
-    pub fn list<F, T>(db_name: String, table_name: String, page_size: u32, page: u32, query: String, mapper: F) -> Result<Vec<T>> 
-    where
-        F: FnMut(&Row) -> Result<T>, // The trait bound for the closure
-        T: Sized, // The return type of the closure
-    {
-        let conn = Connection::open(format!("{}.db", db_name))?;
-
-        let query = &format!("SELECT * FROM {}", table_name);
-        let mut stmt = conn.prepare(query)?;
-
-        // Pass the external closure to query_map
-        let rows = stmt.query_map([], mapper)?;
+        // Handle CHECK constraint
+        if let Some(ref check_expr) = field.check {
+            column_def.push_str(&format!(" CHECK ({})", check_expr));
+        }
         
-        // Collect the results into a Vec using fallible_iterator
-        rows.collect()
+        columns.push_str(&format!("{},\n", column_def));
     }
 
-    pub fn read_table(table_name: String) -> Result<()> {
-        let conn = Connection::open(format!("{}.db", table_name))?;
-        let str = &format!("SELECT * FROM {}", table_name);
-        conn.execute(str, [], )?;
-        Ok(())
+    // Remove trailing comma and newline
+    if columns.ends_with(",\n") {
+        columns.pop(); // Remove \n
+        columns.pop(); // Remove ,
     }
 
+    let sql = format!("CREATE TABLE IF NOT EXISTS {} (\n{})", table_name, columns);
+    conn.execute(&sql, [])?;
+    Ok(())
+}
 
+// ============================================================================
+// CRUD OPERATIONS
+// ============================================================================
 
-/*
-    pub fn create_item(id: u32, name: &str, category: &str, tags: Vec<String>) -> Item {
-        Item {
-            id,
-            name: name.to_string(),
-            category: category.to_string(),
-            tags
-        }
-    }
+/// Inserts a new record into the specified table
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// * `keys` - Vector of column names
+/// * `values` - Vector of values to insert (as `serde_json::Value`)
+/// 
+/// # Returns
+/// Number of rows affected (should be 1 on success)
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if insertion fails
+/// 
+/// # Security
+/// Uses parameterized queries to prevent SQL injection
+pub fn insert(
+    db_name: String,
+    table_name: String,
+    keys: Vec<String>,
+    values: Vec<serde_json::Value>,
+) -> Result<usize, rusqlite::Error> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
 
-    pub fn read_item_by_id(items: &[Item], target_id: u32) -> Option<&Item> {
-        items.iter().find(|&item| item.id == target_id)
-    }
+    // Convert serde_json::Value to rusqlite parameters
+    let params_iter = serde_rusqlite::to_params(&values)
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
-    pub fn update_item_name(items: &mut Vec<Item>, target_id: u32, new_name: &str) -> bool {
-        if let Some(item) = items.iter_mut().find(|item| item.id == target_id) {
-            item.name = new_name.to_string();
-            true
-        }
-        else {
-            false
-        }
-    }
+    // Generate placeholders: ?1, ?2, ?3, ...
+    let placeholders: Vec<String> = (1..=values.len())
+        .map(|i| format!("?{}", i))
+        .collect();
 
-    pub fn delete_item(items: &mut Vec<Item>, target_id: u32) -> bool {
-        if let Some(index) = items.iter().position(|item| item.id == target_id) {
-            items.remove(index);
-            true
-        }
-        else {
-            false
-        }
-    }
- */
+    // Build parameterized query
+    let query = format!(
+        "INSERT INTO {} ({}) VALUES ({})",
+        table_name,
+        keys.join(","),
+        placeholders.join(",")
+    );
+
+    conn.execute(&query, params_iter)
+}
+
+/// Updates an existing record in the specified table
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// * `id` - Record ID to update (as string for flexibility)
+/// * `keys` - Vector of column names to update
+/// * `values` - Vector of new values
+/// 
+/// # Returns
+/// Number of rows affected
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if update fails
+/// 
+/// # Security
+/// Uses parameterized queries to prevent SQL injection
+pub fn update(
+    db_name: String,
+    table_name: String,
+    id: String,
+    keys: Vec<String>,
+    values: Vec<serde_json::Value>,
+) -> Result<usize, rusqlite::Error> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
+
+    // Build SET clause: key1 = ?1, key2 = ?2, ...
+    let set_clauses: Vec<String> = keys
+        .iter()
+        .enumerate()
+        .map(|(i, key)| format!("{} = ?{}", key, i + 1))
+        .collect();
+
+    // Combine values with ID parameter
+    let mut all_params: Vec<serde_json::Value> = values;
+    all_params.push(serde_json::Value::String(id));
+
+    // Build parameterized query with ID as parameter
+    let query = format!(
+        "UPDATE {} SET {} WHERE id = ?{}",
+        table_name,
+        set_clauses.join(", "),
+        all_params.len()
+    );
+
+    // Convert serde_json::Value to rusqlite parameters
+    let params_iter = serde_rusqlite::to_params(&all_params)
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+
+    conn.execute(&query, params_iter)
+}
+
+/// Deletes a record from the specified table
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// * `id` - Record ID to delete
+/// 
+/// # Returns
+/// Number of rows affected (should be 1 on success)
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if deletion fails
+/// 
+/// # Security
+/// Uses parameterized queries to prevent SQL injection
+pub fn delete(db_name: String, table_name: String, id: u32) -> Result<usize, rusqlite::Error> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
+    let query = format!("DELETE FROM {} WHERE id = ?1", table_name);
+
+    conn.execute(&query, params![id])
+}
+
+// ============================================================================
+// QUERY OPERATIONS
+// ============================================================================
+
+/// Retrieves a single record by ID
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// * `id` - Record ID
+/// * `mapper` - Closure to map database row to target type
+/// 
+/// # Returns
+/// Mapped result of type `T`
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if query fails or record not found
+pub fn get<F, T>(db_name: String, table_name: String, id: u32, mapper: F) -> Result<T>
+where
+    F: FnMut(&Row) -> Result<T>,
+    T: Sized,
+{
+    let conn = Connection::open(format!("{}.db", db_name))?;
+    let query = format!("SELECT * FROM {} WHERE id = ?1", table_name);
+
+    conn.query_row(&query, [id], mapper)
+}
+
+/// Lists all records from the specified table
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// * `page_size` - Number of records per page (currently unused, reserved for pagination)
+/// * `page` - Page number (currently unused, reserved for pagination)
+/// * `query` - Additional query string (currently unused, reserved for filtering)
+/// * `mapper` - Closure to map database rows to target type
+/// 
+/// # Returns
+/// Vector of mapped results
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if query fails
+/// 
+/// # Note
+/// Pagination and filtering parameters are reserved for future implementation
+pub fn list<F, T>(
+    db_name: String,
+    table_name: String,
+    _page_size: u32,
+    _page: u32,
+    _query: String,
+    mapper: F,
+) -> Result<Vec<T>>
+where
+    F: FnMut(&Row) -> Result<T>,
+    T: Sized,
+{
+    let conn = Connection::open(format!("{}.db", db_name))?;
+    let query = format!("SELECT * FROM {}", table_name);
+    let mut stmt = conn.prepare(&query)?;
+
+    let rows = stmt.query_map([], mapper)?;
+    rows.collect()
+}
+
+#[cfg(test)]
+#[path = "repository.test.rs"]
+mod tests;

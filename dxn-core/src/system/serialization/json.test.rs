@@ -150,21 +150,35 @@ fn test_deserialize_mismatched_types() {
 
 #[test]
 fn test_read_as_string() {
-    // Note: This test reads ./config.json which is hardcoded in the function
-    // This is more of a smoke test to ensure the function doesn't panic
-    // If config.json doesn't exist, the test will fail, which is expected behavior
-    let result = read_as_string();
-    // We just verify it returns a Result (either Ok or Err depending on file existence)
+    use std::fs;
+    use std::path::Path;
+    
+    // Create a temporary test file
+    let test_file_path = "./test_read_as_string_temp.txt".to_string();
+    let test_content = "Test content for read_as_string";
+    
+    // Create the file
+    fs::write(&test_file_path, test_content).unwrap();
+    
+    // Test reading the file
+    let result = read_as_string(test_file_path.clone());
+    
+    // Verify it was read successfully
     match result {
-        Ok(_) => {
-            // File exists and was read successfully
-            assert!(true);
+        Ok(content) => {
+            assert_eq!(content.trim(), test_content);
         },
-        Err(_) => {
-            // File doesn't exist, which is also valid for this test
-            // We're just testing that the function doesn't panic
-            assert!(true);
+        Err(e) => {
+            panic!("Failed to read test file: {:?}", e);
         }
     }
+    
+    // Cleanup
+    if Path::new(&test_file_path).exists() {
+        fs::remove_file(&test_file_path).unwrap();
+    }
+    
+    println!("   ✓ Test passed: test_read_as_string\n");
 }
+
 

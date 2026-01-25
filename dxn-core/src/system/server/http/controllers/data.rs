@@ -1,6 +1,7 @@
 //use serde::Deserialize;
 use actix_web::{ web,  HttpResponse, HttpRequest, Responder}; 
 use crate::data::db::sqlite; 
+use crate::data::db::sqlite::migrations;
 use crate::data::models::{SystemData, QueryParams}; 
  
 use rusqlite::{Row, types::ValueRef, Result};
@@ -217,8 +218,213 @@ pub async fn delete(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
     HttpResponse::Ok().body(str)
 } 
 
+// ============================================================================
+// MIGRATION ROUTES
+// ============================================================================
+
+/// Request body for migration operations
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MigrationRequest {
+    /// Database name (e.g., "public", "private")
+    pub db_name: Option<String>,
+    /// Force apply (skip approval checks)
+    pub force: Option<bool>,
+    /// Migration ID (for single migration operations)
+    pub migration_id: Option<String>,
+}
+
+/// Apply a specific migration by ID
+/// 
+/// POST /api/data/migrate/{migration_id}
+/// Body: { "db_name": "public", "force": false }
+pub async fn apply_migration_route(
+    path: web::Path<String>,
+    payload: web::Json<MigrationRequest>,
+) -> impl Responder {
+    let migration_id = path.into_inner();
+    let db_name = payload.db_name.as_deref().unwrap_or("public");
+    let force = payload.force.unwrap_or(false);
+
+    // Load all migrations to find the one we want
+    let migrations_list = match migrations::load_migrations() {
+        Ok(ms) => ms,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to load migrations: {}", e)
+            }));
+        }
+    };
+
+    let migration = migrations_list.iter().find(|m| m.id == migration_id);
+    
+    match migration {
+        Some(m) => {
+            match migrations::apply_migration(db_name, m, force) {
+                Ok(result) => {
+                    match result {
+                        migrations::MigrationResult::Applied => {
+                            HttpResponse::Ok().json(json!({
+                                "status": "success",
+                                "message": format!("Migration '{}' applied successfully", migration_id),
+                                "migration_id": migration_id
+                            }))
+                        }
+                        migrations::MigrationResult::RequiresApproval { reason } => {
+                            HttpResponse::BadRequest().json(json!({
+                                "status": "requires_approval",
+                                "message": reason,
+                                "migration_id": migration_id,
+                                "hint": "Set 'force': true in request body to apply this migration"
+                            }))
+                        }
+                        migrations::MigrationResult::Failed { error } => {
+                            HttpResponse::InternalServerError().json(json!({
+                                "status": "failed",
+                                "error": error,
+                                "migration_id": migration_id
+                            }))
+                        }
+                    }
+                }
+                Err(e) => {
+                    HttpResponse::InternalServerError().json(json!({
+                        "error": format!("Migration error: {}", e),
+                        "migration_id": migration_id
+                    }))
+                }
+            }
+        }
+        None => {
+            HttpResponse::NotFound().json(json!({
+                "error": format!("Migration '{}' not found", migration_id)
+            }))
+        }
+    }
+}
+
+/// Apply all pending migrations
+/// 
+/// POST /api/data/migrate/all
+/// Body: { "db_name": "public", "force": false }
+pub async fn apply_all_migrations_route(
+    payload: web::Json<MigrationRequest>,
+) -> impl Responder {
+    let db_name = payload.db_name.as_deref().unwrap_or("public");
+    let force = payload.force.unwrap_or(false);
+
+    match migrations::apply_all_pending(db_name, force) {
+        Ok(results) => {
+            let mut applied = Vec::new();
+            let mut requires_approval = Vec::new();
+            let mut failed = Vec::new();
+
+            for (migration_id, result) in results {
+                match result {
+                    migrations::MigrationResult::Applied => {
+                        applied.push(migration_id);
+                    }
+                    migrations::MigrationResult::RequiresApproval { reason } => {
+                        requires_approval.push(json!({
+                            "migration_id": migration_id,
+                            "reason": reason
+                        }));
+                    }
+                    migrations::MigrationResult::Failed { error } => {
+                        failed.push(json!({
+                            "migration_id": migration_id,
+                            "error": error
+                        }));
+                    }
+                }
+            }
+
+            HttpResponse::Ok().json(json!({
+                "status": "completed",
+                "applied": applied,
+                "requires_approval": requires_approval,
+                "failed": failed,
+                "summary": {
+                    "total": applied.len() + requires_approval.len() + failed.len(),
+                    "applied": applied.len(),
+                    "requires_approval": requires_approval.len(),
+                    "failed": failed.len()
+                }
+            }))
+        }
+        Err(e) => {
+            HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to apply migrations: {}", e)
+            }))
+        }
+    }
+}
+
+/// List all migrations and their status
+/// 
+/// GET /api/data/migrate/list?db_name=public
+pub async fn list_migrations_route(
+    query: web::Query<HashMap<String, String>>,
+) -> impl Responder {
+    let db_name = query.get("db_name").map(|s| s.as_str()).unwrap_or("public");
+
+    // Load all migrations
+    let migrations_list = match migrations::load_migrations() {
+        Ok(ms) => ms,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to load migrations: {}", e)
+            }));
+        }
+    };
+
+    // Get applied migrations
+    let applied = match migrations::get_applied_migrations(db_name) {
+        Ok(applied_ids) => applied_ids,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to get applied migrations: {}", e)
+            }));
+        }
+    };
+
+    // Build response with status for each migration
+    let migrations_with_status: Vec<serde_json::Value> = migrations_list
+        .iter()
+        .map(|m| {
+            let is_applied = applied.contains(&m.id);
+            json!({
+                "id": m.id,
+                "description": m.description,
+                "created_at": m.created_at,
+                "applied": is_applied,
+                "requires_approval": migrations::requires_approval(m).is_some()
+            })
+        })
+        .collect();
+
+    HttpResponse::Ok().json(json!({
+        "db_name": db_name,
+        "migrations": migrations_with_status,
+        "summary": {
+            "total": migrations_list.len(),
+            "applied": applied.len(),
+            "pending": migrations_list.len() - applied.len()
+        }
+    }))
+}
 
 pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
+    // Register migration routes at the data scope level
+    cfg.service(
+        web::scope("/migrate")
+            .route("/list", web::get().to(list_migrations_route))
+            .route("/list/", web::get().to(list_migrations_route))
+            .route("/all", web::post().to(apply_all_migrations_route))
+            .route("/all/", web::post().to(apply_all_migrations_route))
+            .route("/{migration_id}", web::post().to(apply_migration_route))
+            .route("/{migration_id}/", web::post().to(apply_migration_route))
+    );
+
     match data.public {
         Some(vec) => {
             // 'vec' is a Vec<SystemDataModel> here
@@ -236,14 +442,12 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
                             .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
                             .route("/{id}", web::put().to(put::<HashMap<String, serde_json::Value>>))
                             .route("/{id}", web::delete().to(delete))
-                            .route("/db/migrate/{version}", web::post().to(post::<HashMap<String, serde_json::Value>>))
 
                             .route("/list/", web::get().to(list))
                             .route("/{id}/", web::get().to(get))
                             .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
                             .route("/{id}/", web::put().to(put::<HashMap<String, serde_json::Value>>))
                             .route("/{id}/", web::delete().to(delete))
-                            .route("/db/migrate/{version}/", web::post().to(post::<HashMap<String, serde_json::Value>>))
                             //.route("/echo", web::post().to(echo))
                     );
                 }

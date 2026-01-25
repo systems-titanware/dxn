@@ -1,5 +1,6 @@
 use super::*;
 use std::fs;
+use std::io;
 use std::path::Path;
 
 // Helper function to create a temporary test directory
@@ -147,6 +148,12 @@ fn test_add_file_existing() {
     let test_path = "test/touch_existing_test.txt";
     let initial_content = "Some content";
     
+    // Ensure parent directory exists
+    let full_path = get_full_path(test_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    
     // Create file with content
     add_file_content(initial_content, test_path).unwrap();
     
@@ -154,7 +161,6 @@ fn test_add_file_existing() {
     add_file(test_path).unwrap();
     
     // Verify file still exists (content may be cleared or preserved)
-    let full_path = get_full_path(test_path);
     assert!(full_path.exists());
     
     cleanup_test_env().unwrap();

@@ -1,5 +1,26 @@
 {
-
+    "settings": {
+        "id": "uuid",
+        "slug": "string",
+        "user": "uuid",
+        "admin": "uuid",
+        "manifest": "github/repos/titanware-dev/dxn-manifest/manifest.json",
+    },
+    "private": {
+        "hash": "string",
+        "shared_key": "string",
+        "shared_token": "string",
+        "shared_url": "string",
+        "shared_port": "number",
+        "shared_host": "string",
+        "shared_protocol": "string",
+        "shared_path": "string",
+        "idp_path": "string",
+        "idp_url": "string",
+        "idp_port": "number",
+        "idp_host": "string",
+        "idp_protocol": "string"
+    },
     "serviceMesh": {
         "registryUrl": "https://registry.dxn.io",
         "discoveryInterval": 300,

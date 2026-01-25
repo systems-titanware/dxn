@@ -12,7 +12,7 @@ fn test_flatten_routes_single_route() {
     let routes = Some(vec![SystemServerRoute {
         name: "home".to_string(),
         file: "home.html".to_string(),
-        function: None,
+        layout: None,
         routes: None,
     }]);
 
@@ -23,7 +23,7 @@ fn test_flatten_routes_single_route() {
     let route = result.get("home").unwrap();
     assert_eq!(route.name, "home");
     assert_eq!(route.file, "home.html");
-    assert_eq!(route.function, None);
+    assert_eq!(route.layout, None);
 }
 
 #[test]
@@ -31,18 +31,18 @@ fn test_flatten_routes_nested() {
     let routes = Some(vec![SystemServerRoute {
         name: "blog".to_string(),
         file: "blog.html".to_string(),
-        function: None,
+        layout: None,
         routes: Some(vec![
             SystemServerRoute {
                 name: "post".to_string(),
                 file: "post.html".to_string(),
-                function: None,
+                layout: None,
                 routes: None,
             },
             SystemServerRoute {
                 name: "archive".to_string(),
                 file: "archive.html".to_string(),
-                function: None,
+                layout: None,
                 routes: None,
             },
         ]),
@@ -70,15 +70,15 @@ fn test_flatten_routes_deeply_nested() {
     let routes = Some(vec![SystemServerRoute {
         name: "level1".to_string(),
         file: "level1.html".to_string(),
-        function: None,
+        layout: None,
         routes: Some(vec![SystemServerRoute {
             name: "level2".to_string(),
             file: "level2.html".to_string(),
-            function: None,
+            layout: None,
             routes: Some(vec![SystemServerRoute {
                 name: "level3".to_string(),
                 file: "level3.html".to_string(),
-                function: None,
+                layout: None,
                 routes: None,
             }]),
         }]),
@@ -93,11 +93,11 @@ fn test_flatten_routes_deeply_nested() {
 }
 
 #[test]
-fn test_flatten_routes_with_function() {
+fn test_flatten_routes_with_layout() {
     let routes = Some(vec![SystemServerRoute {
         name: "test".to_string(),
         file: "test.html".to_string(),
-        function: Some("parse_markdown".to_string()),
+        layout: Some("global.layout.html".to_string()),
         routes: None,
     }]);
 
@@ -105,7 +105,7 @@ fn test_flatten_routes_with_function() {
     
     assert_eq!(result.len(), 1);
     let route = result.get("test").unwrap();
-    assert_eq!(route.function, Some("parse_markdown".to_string()));
+    assert_eq!(route.layout, Some("global.layout.html".to_string()));
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_recursively_flatten_routes_single() {
     let route = SystemServerRoute {
         name: "single".to_string(),
         file: "single.html".to_string(),
-        function: None,
+        layout: None,
         routes: None,
     };
 
@@ -130,7 +130,7 @@ fn test_recursively_flatten_routes_with_parent() {
     let route = SystemServerRoute {
         name: "child".to_string(),
         file: "child.html".to_string(),
-        function: None,
+        layout: None,
         routes: None,
     };
 
@@ -147,18 +147,18 @@ fn test_recursively_flatten_routes_multiple_children() {
     let route = SystemServerRoute {
         name: "parent".to_string(),
         file: "parent.html".to_string(),
-        function: None,
+        layout: None,
         routes: Some(vec![
             SystemServerRoute {
                 name: "child1".to_string(),
                 file: "child1.html".to_string(),
-                function: None,
+                layout: None,
                 routes: None,
             },
             SystemServerRoute {
                 name: "child2".to_string(),
                 file: "child2.html".to_string(),
-                function: None,
+                layout: None,
                 routes: None,
             },
         ]),
@@ -178,14 +178,12 @@ fn test_convert_routes() {
     routes.insert("test".to_string(), FlattenRoutePath {
         name: "test".to_string(),
         file: "test.html".to_string(),
-        function: None,
-        params: None,
+        layout: None,
     });
     routes.insert("blog".to_string(), FlattenRoutePath {
         name: "blog".to_string(),
         file: "blog.html".to_string(),
-        function: Some("parse".to_string()),
-        params: None,
+        layout: Some("global.layout.html".to_string()),
     });
 
     let result = convert_routes(routes);
