@@ -45,15 +45,23 @@ pub fn add_content(str: &str, path: &str) -> io::Result<()> {
 
 // A simple implementation of `% echo s > path`
 pub fn add_file_content(s: &str, path: &str) -> io::Result<()> {
-    let mut full_path = get_full_path(path);
-    let mut f = File::create(full_path)?;
-    f.write_all(s.as_bytes())
+    let full_path = get_full_path(path);
+    // Ensure parent directory exists
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    // Use fs::write which handles file creation and writing atomically
+    fs::write(&full_path, s.as_bytes())
 }
 
 // A simple implementation of `% touch path` (ignores existing files)
 pub fn add_file(path: &str) -> io::Result<()> {
-    let mut full_path = get_full_path(path);
-    match OpenOptions::new().create(true).write(true).open(full_path) {
+    let full_path = get_full_path(path);
+    // Ensure parent directory exists
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    match OpenOptions::new().create(true).write(true).open(&full_path) {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }

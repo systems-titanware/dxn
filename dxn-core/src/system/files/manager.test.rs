@@ -14,10 +14,12 @@ fn setup_test_env() -> io::Result<()> {
 }
 
 // Helper function to cleanup test directory
+// Note: We ignore errors during cleanup as files may still be open or locked
 fn cleanup_test_env() -> io::Result<()> {
     let test_dir = Path::new("../dxn-files/_files/test");
     if test_dir.exists() {
-        fs::remove_dir_all(test_dir)?;
+        // Try to remove, but don't fail if it doesn't work (files might be locked)
+        let _ = fs::remove_dir_all(test_dir);
     }
     Ok(())
 }
@@ -29,6 +31,8 @@ fn test_read_file() {
     // Create a test file
     let test_path = "test/read_test.txt";
     let test_content = "Hello, World!";
+    
+    // add_file_content will create parent directories automatically
     add_file_content(test_content, test_path).unwrap();
     
     // Read the file
@@ -51,6 +55,12 @@ fn test_add_file_content() {
     let test_path = "test/write_test.txt";
     let test_content = "Test content for writing";
     
+    // Ensure parent directory exists
+    let full_path = get_full_path(test_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    
     // Write content
     add_file_content(test_content, test_path).unwrap();
     
@@ -68,6 +78,12 @@ fn test_add_file_content_overwrite() {
     let test_path = "test/overwrite_test.txt";
     let initial_content = "Initial content";
     let new_content = "New content";
+    
+    // Ensure parent directory exists
+    let full_path = get_full_path(test_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
     
     // Write initial content
     add_file_content(initial_content, test_path).unwrap();
@@ -91,6 +107,12 @@ fn test_add_content_append() {
     let initial_content = "Initial";
     let appended_content = "Appended";
     
+    // Ensure parent directory exists
+    let full_path = get_full_path(test_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    
     // Create file with initial content
     add_file_content(initial_content, test_path).unwrap();
     
@@ -111,6 +133,12 @@ fn test_add_content_creates_file() {
     let test_path = "test/create_append_test.txt";
     let content = "New file content";
     
+    // Ensure parent directory exists
+    let full_path = get_full_path(test_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    
     // Append to non-existent file (should create it)
     add_content(content, test_path).unwrap();
     
@@ -127,11 +155,16 @@ fn test_add_file() {
     
     let test_path = "test/touch_test.txt";
     
+    // Ensure parent directory exists
+    let full_path = get_full_path(test_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    
     // Create empty file
     add_file(test_path).unwrap();
     
     // Verify file exists
-    let full_path = get_full_path(test_path);
     assert!(full_path.exists());
     
     // Verify file is empty

@@ -63,6 +63,9 @@ pub enum MigrationResult {
 /// Path to store migration files (relative to dxn-files)
 const MIGRATIONS_DIR: &str = "_files/migrations";
 
+/// Path to store database backup files (relative to dxn-files)
+const DB_BACKUP_DIR: &str = "db-backup";
+
 /// Name of the migrations tracking table
 const MIGRATIONS_TABLE: &str = "__dxn_migrations";
 
@@ -73,6 +76,11 @@ const MIGRATIONS_TABLE: &str = "__dxn_migrations";
 /// Gets the full path to the migrations directory
 fn get_migrations_path() -> PathBuf {
     PathBuf::from("../dxn-files").join(MIGRATIONS_DIR)
+}
+
+/// Gets the full path to the database backup directory
+fn get_db_backup_path() -> PathBuf {
+    PathBuf::from("../dxn-files").join(DB_BACKUP_DIR)
 }
 
 /// Saves a migration to a file in the migrations directory
@@ -148,7 +156,13 @@ pub fn backup_database(db_name: &str) -> io::Result<PathBuf> {
     let source = format!("{}.db", db_name);
     let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
     let backup_name = format!("{}_{}.db.backup", db_name, timestamp);
-    let backup_path = PathBuf::from(&backup_name);
+    
+    // Get backup directory and ensure it exists
+    let backup_dir = get_db_backup_path();
+    fs::create_dir_all(&backup_dir)?;
+    
+    // Create full backup path
+    let backup_path = backup_dir.join(&backup_name);
 
     // Copy database file
     fs::copy(&source, &backup_path)?;

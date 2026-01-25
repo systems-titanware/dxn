@@ -6,74 +6,88 @@
 // - Reads result from the returned pointer
 
 use serde::{Deserialize, Serialize};
+use core::ptr;
 
-// Fixed buffer for reading input (executor writes to offset 1024)
-static mut INPUT_BUFFER: [u8; 8192] = [0; 8192];
+// Output buffer offset - where we write results in WASM memory
+// We use offset 2048 to avoid conflicts with input (at 1024)
+const OUTPUT_BASE: usize = 2048;
+const OUTPUT_BUFFER_SIZE: usize = 16384;
 
-// Fixed buffer for writing output (functions write to offset 2048)
-static mut OUTPUT_BUFFER: [u8; 16384] = [0; 16384];
+// Track where to write next output (simple allocator)
 static mut OUTPUT_OFFSET: usize = 0;
 
-/// Read JSON string from WASM memory
+/// Read JSON string from WASM linear memory
 /// 
-/// The executor writes input JSON to memory at the given pointer (offset 1024).
-/// This function reads from that location.
-/// 
-/// # Note
-/// This implementation uses a static buffer as a placeholder.
-/// In production, you should read directly from WASM linear memory at the given pointer.
-/// To do this, you'll need to import memory and use unsafe pointer access, or use
-/// host-provided memory read functions.
+/// The executor writes input JSON to WASM memory at the given pointer.
+/// This function reads directly from WASM linear memory at that location.
 /// 
 /// # Safety
-/// This function is unsafe because it uses static mutable buffers.
+/// This function is unsafe because it performs raw pointer operations.
+/// The caller must ensure ptr and len are valid.
 pub unsafe fn read_json_from_memory(ptr: i32, len: i32) -> Result<String, String> {
-    // TODO: In production, read directly from WASM linear memory at ptr
-    // For now, using static buffer as placeholder
-    // The executor writes to WASM memory at offset 1024, but this static buffer
-    // won't actually see that data. Update this to read from actual WASM memory.
-    
-    if len < 0 || len as usize > INPUT_BUFFER.len() {
+    if len < 0 {
         return Err(format!("Invalid length: {}", len));
     }
     
-    // Placeholder: Read from static buffer
-    // In production: Read from WASM linear memory at ptr
-    let bytes = &INPUT_BUFFER[0..len as usize];
+    let len_usize = len as usize;
     
-    String::from_utf8(bytes.to_vec())
+    // Validate length is reasonable (prevent buffer overflow)
+    if len_usize > 1024 * 1024 {  // 1MB max
+        return Err(format!("Length too large: {}", len));
+    }
+    
+    // Read from WASM linear memory at the given pointer
+    // In WASM, memory starts at address 0, so we can use the pointer directly
+    let mut bytes = vec![0u8; len_usize];
+    
+    // Copy bytes from WASM memory to our buffer
+    // ptr::copy_nonoverlapping is safe for non-overlapping regions
+    ptr::copy_nonoverlapping(
+        ptr as *const u8,
+        bytes.as_mut_ptr(),
+        len_usize
+    );
+    
+    String::from_utf8(bytes)
         .map_err(|e| format!("Invalid UTF-8: {}", e))
 }
 
-/// Write result to WASM memory and return pointer and length packed as i64
+/// Write result to WASM linear memory and return pointer and length packed as i64
 /// 
 /// Returns i64 where lower 32 bits = ptr, upper 32 bits = len
 /// 
 /// # Safety
-/// This function is unsafe because it uses static mutable buffers.
+/// This function is unsafe because it performs raw pointer operations.
 pub unsafe fn write_result_to_memory(result: &str) -> i64 {
     let result_bytes = result.as_bytes();
     let len = result_bytes.len();
     
     // Check if we have space
-    if OUTPUT_OFFSET + len > OUTPUT_BUFFER.len() {
-        // Reset offset if buffer is full (simple circular buffer)
+    if OUTPUT_OFFSET + len > OUTPUT_BUFFER_SIZE {
+        // Reset if buffer is full (simple circular buffer)
         OUTPUT_OFFSET = 0;
     }
     
-    // Write to buffer
-    let available_space = OUTPUT_BUFFER.len() - OUTPUT_OFFSET;
+    // Calculate write pointer in WASM memory
+    let write_ptr = OUTPUT_BASE + OUTPUT_OFFSET;
+    
+    // Ensure we don't overflow
+    let available_space = OUTPUT_BUFFER_SIZE - OUTPUT_OFFSET;
     let write_len = len.min(available_space);
     
-    OUTPUT_BUFFER[OUTPUT_OFFSET..OUTPUT_OFFSET + write_len]
-        .copy_from_slice(&result_bytes[..write_len]);
+    // Write to WASM linear memory
+    // ptr::copy_nonoverlapping is safe for non-overlapping regions
+    ptr::copy_nonoverlapping(
+        result_bytes.as_ptr(),
+        write_ptr as *mut u8,
+        write_len
+    );
     
-    // Return pointer (base offset 2048) and length packed as i64
-    let ptr = 2048 + OUTPUT_OFFSET;
-    OUTPUT_OFFSET = (OUTPUT_OFFSET + write_len + 1).min(OUTPUT_BUFFER.len() - 100);
+    // Update offset for next write
+    OUTPUT_OFFSET = (OUTPUT_OFFSET + write_len + 1).min(OUTPUT_BUFFER_SIZE - 100);
     
     // Pack (ptr, len) into i64: lower 32 bits = ptr, upper 32 bits = len
-    (ptr as i64) | ((write_len as i64) << 32)
+    (write_ptr as i64) | ((write_len as i64) << 32)
 }
 
 /// Helper to deserialize JSON into a struct

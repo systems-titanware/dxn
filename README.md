@@ -88,6 +88,7 @@ cargo run --manifest-path './dxn-core/Cargo.toml'
 # Build WASM functions, then build and run core server
 cargo build --manifest-path './dxn-wasm-parser/Cargo.toml' --target wasm32-unknown-unknown --release && \
 cargo build --manifest-path './dxn-core/Cargo.toml' && \
+cargo test --manifest-path './dxn-core/Cargo.toml' -- --show-output && \
 cargo run --manifest-path './dxn-core/Cargo.toml'
 ```
 

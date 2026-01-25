@@ -4,7 +4,7 @@
         "slug": "string",
         "user": "uuid",
         "admin": "uuid",
-        "manifest": "github/repos/titanware-dev/dxn-manifest/manifest.json",
+        "manifest": "github/repos/titanware-dev/dxn-manifest/manifest.json"
     },
     "private": {
         "hash": "string",

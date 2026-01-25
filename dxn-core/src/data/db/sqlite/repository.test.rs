@@ -21,10 +21,42 @@ mod tests {
         Ok(())
     }
 
-    // Helper to clean up test database
+    // Helper to clean up test database and backup files
     fn cleanup_test_db(db_name: &str) {
         let db_path = format!("{}.db", db_name);
         fs::remove_file(&db_path).ok();
+        
+        // Clean up any backup files for this database
+        let backup_dir = PathBuf::from("../dxn-files/db-backup");
+        if backup_dir.exists() {
+            if let Ok(entries) = fs::read_dir(&backup_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                            // Check if this backup file is for our test database
+                            if file_name.starts_with(db_name) && file_name.ends_with(".db.backup") {
+                                let _ = fs::remove_file(&path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also clean up any backup files in the current directory (legacy location)
+        if let Ok(entries) = fs::read_dir(".") {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                        if file_name.starts_with(db_name) && file_name.ends_with(".db.backup") {
+                            let _ = fs::remove_file(&path);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Helper to create initial schema (v1)
