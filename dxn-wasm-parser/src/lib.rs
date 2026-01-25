@@ -1,5 +1,6 @@
 use dxn_shared::wasm_memory::*;
 use serde::{Deserialize, Serialize};
+use pulldown_cmark;
 
 #[derive(Deserialize, Serialize)]
 struct Config {
@@ -94,11 +95,12 @@ pub extern "C" fn typed_params(json_ptr: i32, json_len: i32) -> i64 {
     }
 }
 
-/// WASM function that parses markdown (accepts path as JSON string)
+/// WASM function that parses markdown to HTML
+/// Accepts markdown text as JSON string (can be plain string or {"markdown": "..."})
 #[no_mangle]
 pub extern "C" fn parse_markdown(json_ptr: i32, json_len: i32) -> i64 {
     unsafe {
-        // Read JSON string
+        // Read JSON string from WASM memory
         let json_str = match read_json_from_memory(json_ptr, json_len) {
             Ok(s) => s,
             Err(e) => {
@@ -106,28 +108,59 @@ pub extern "C" fn parse_markdown(json_ptr: i32, json_len: i32) -> i64 {
             }
         };
         
-        // Parse path from JSON (could be just a string or {"path": "..."})
-        let path = match serde_json::from_str::<serde_json::Value>(&json_str) {
+        // Parse markdown text from JSON input
+        // Supports multiple formats:
+        // 1. JSON array: ["markdown text"] (from API controller)
+        // 2. JSON object: {"markdown": "text"}
+        // 3. Plain string: "text"
+        let markdown_text = match serde_json::from_str::<serde_json::Value>(&json_str) {
             Ok(v) => {
-                if let Some(p) = v.get("path") {
-                    p.as_str().unwrap_or("").to_string()
+                // Check if it's an array (from API: params are converted to array)
+                if let Some(arr) = v.as_array() {
+                    if let Some(first) = arr.first() {
+                        // If first element is a string, use it
+                        if let Some(s) = first.as_str() {
+                            s.to_string()
+                        } else if let Some(obj) = first.as_object() {
+                            // If first element is an object, check for "markdown" field
+                            obj.get("markdown")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string()
+                        } else {
+                            "".to_string()
+                        }
+                    } else {
+                        "".to_string()
+                    }
+                } else if let Some(md) = v.get("markdown") {
+                    // Object with "markdown" field
+                    md.as_str().unwrap_or("").to_string()
                 } else if v.is_string() {
+                    // Plain string
                     v.as_str().unwrap_or("").to_string()
                 } else {
                     "".to_string()
                 }
             },
             Err(_) => {
-                // Try as plain string
+                // Try as plain string (remove quotes if present)
                 json_str.trim_matches('"').to_string()
             }
         };
         
-        // Placeholder implementation
-        // In a real implementation, you would read the file and parse markdown
+        if markdown_text.is_empty() {
+            return write_error("No markdown content provided");
+        }
+        
+        // Parse markdown to HTML using pulldown_cmark
+        let parser = pulldown_cmark::Parser::new(&markdown_text);
+        let mut html_output = String::new();
+        pulldown_cmark::html::push_html(&mut html_output, parser);
+        
+        // Return HTML result
         let result_json = serde_json::json!({
-            "path": path,
-            "content": "Parsed markdown content would go here",
+            "html": html_output,
             "status": "success"
         });
         

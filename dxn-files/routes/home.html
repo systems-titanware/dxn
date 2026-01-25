@@ -2,7 +2,10 @@
     activeTab: 'features',
     status: 'idle',
     statusData: null,
+    markdownHtml: null,
+    markdownLoading: false,
     async fetchStatus() {
+        console.log('fetchStatus');
         this.status = 'loading';
         try {
             const response = await fetch('/api/function/get_status', { method: 'POST' });
@@ -14,11 +17,48 @@
             this.statusData = { error: error.message };
         }
     },
+    async fetchMarkdown() {
+        this.markdownLoading = true;
+        try {
+            const markdown = '# Welcome to DXN\n## What is DXN?\nDXN is a **self-hosted** data management platform that puts you in control of your data.';
+            
+            const response = await fetch('/api/function/parse_markdown', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ markdown: markdown })
+            });
+            
+            const data = await response.json();
+            
+            if (data.html) {
+                this.markdownHtml = data.html;
+            } else if (data.error) {
+                this.markdownHtml = '<div class='text-red-600'>Error: ${data.error}</div>';
+            } else {
+                this.markdownHtml = '';
+            }
+            this.markdownLoading = false;
+        } catch (error) {
+            this.markdownHtml = ``;
+            this.markdownLoading = false;
+        }
+    },
     getStatusText() {
         if (!this.statusData) return '';
         return JSON.stringify(this.statusData, null, 2);
     }
-}">
+}" x-init="fetchMarkdown()">
+    <!-- Markdown Content Section (Top) -->
+    <div class="mb-12 bg-white rounded-lg shadow-sm p-8" x-show="markdownHtml || markdownLoading" x-cloak>
+        <div x-show="markdownLoading" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <p class="mt-2 text-gray-600">Loading markdown...</p>
+        </div>
+        <div x-show="!markdownLoading && markdownHtml" class="prose prose-indigo max-w-none" x-html="markdownHtml"></div>
+    </div>
+
     <!-- Hero Section -->
     <div class="text-center mb-16">
         <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-4">
@@ -104,7 +144,7 @@
                 </div>
             </div>
             <button 
-                @click="fetchStatus()" 
+                @click="fetchStatus" 
                 class="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
             >
                 Check Server Status

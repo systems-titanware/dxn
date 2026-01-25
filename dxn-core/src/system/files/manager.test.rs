@@ -7,7 +7,8 @@ use std::path::Path;
 fn setup_test_env() -> io::Result<()> {
     let test_dir = Path::new("../dxn-files/_files/test");
     if test_dir.exists() {
-        fs::remove_dir_all(test_dir)?;
+        // Try to remove, but ignore errors (files might be locked or in use)
+        let _ = fs::remove_dir_all(test_dir);
     }
     fs::create_dir_all(test_dir)?;
     Ok(())
@@ -79,19 +80,23 @@ fn test_add_file_content_overwrite() {
     let initial_content = "Initial content";
     let new_content = "New content";
     
-    // Ensure parent directory exists
+    // Get full path for verification
     let full_path = get_full_path(test_path);
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent).unwrap();
-    }
     
+    // add_file_content will create parent directories automatically
     // Write initial content
     add_file_content(initial_content, test_path).unwrap();
+    
+    // Verify file exists and initial content was written
+    assert!(full_path.exists(), "File should exist after first write");
+    let initial_read = read_file(test_path).unwrap();
+    assert_eq!(initial_read, initial_content);
     
     // Overwrite with new content
     add_file_content(new_content, test_path).unwrap();
     
-    // Verify new content
+    // Verify file still exists and has new content
+    assert!(full_path.exists(), "File should exist after second write");
     let content = read_file(test_path).unwrap();
     assert_eq!(content, new_content);
     assert_ne!(content, initial_content);
@@ -181,9 +186,23 @@ fn test_add_file_existing() {
     let test_path = "test/touch_existing_test.txt";
     let initial_content = "Some content";
     
-    // Ensure parent directory exists
+    // Get full path and delete file if it exists
     let full_path = get_full_path(test_path);
+    if full_path.exists() && full_path.is_file() {
+        fs::remove_file(&full_path).ok();
+    }
+    
+    // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
+        // Remove parent if it exists as a file (shouldn't happen, but handle it)
+        if parent.exists() {
+            if parent.is_file() {
+                fs::remove_file(parent).ok();
+            } else if parent.is_dir() {
+                // Directory already exists, that's fine
+            }
+        }
+        // create_dir_all will create the directory if it doesn't exist
         fs::create_dir_all(parent).unwrap();
     }
     

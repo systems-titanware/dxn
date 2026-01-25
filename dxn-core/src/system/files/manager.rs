@@ -18,13 +18,8 @@ const ROOT_FILE_PATH: &str = "../dxn-files/_files";
 
 // A simple implementation of `% cat path`
 pub fn read_file(path: &str) -> io::Result<String> {
-    let mut full_path = get_full_path(path);
-    let mut f = File::open(full_path.as_os_str())?;
-    let mut s = String::new();
-    match f.read_to_string(&mut s) {
-        Ok(_) => Ok(s),
-        Err(e) => Err(e),
-    }
+    let full_path = get_full_path(path);
+    fs::read_to_string(&full_path)
 }
 
 // A simple implementation of `% echo s > path`
@@ -48,6 +43,12 @@ pub fn add_file_content(s: &str, path: &str) -> io::Result<()> {
     let full_path = get_full_path(path);
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
+        // If parent exists as a file, remove it first (shouldn't happen, but handle it)
+        if parent.exists() && parent.is_file() {
+            fs::remove_file(parent)?;
+        }
+        // create_dir_all will create the directory if it doesn't exist,
+        // or do nothing if it already exists as a directory
         fs::create_dir_all(parent)?;
     }
     // Use fs::write which handles file creation and writing atomically
