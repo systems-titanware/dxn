@@ -157,7 +157,7 @@ pub fn create_dynamic_table(
 /// * `values` - Vector of values to insert (as `serde_json::Value`)
 /// 
 /// # Returns
-/// Number of rows affected (should be 1 on success)
+/// ID of the newly inserted row
 /// 
 /// # Errors
 /// Returns `rusqlite::Error` if insertion fails
@@ -169,7 +169,7 @@ pub fn insert(
     table_name: String,
     keys: Vec<String>,
     values: Vec<serde_json::Value>,
-) -> Result<usize, rusqlite::Error> {
+) -> Result<u64, rusqlite::Error> {
     let conn = Connection::open(format!("{}.db", db_name))?;
 
     // Convert serde_json::Value to rusqlite parameters
@@ -189,7 +189,8 @@ pub fn insert(
         placeholders.join(",")
     );
 
-    conn.execute(&query, params_iter)
+    conn.execute(&query, params_iter)?;
+    Ok(conn.last_insert_rowid() as u64)
 }
 
 /// Updates an existing record in the specified table

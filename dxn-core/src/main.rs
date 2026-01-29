@@ -5,6 +5,10 @@ mod functions;
 //mod functions;
 
 use uuid::Uuid;
+use actix_cors::Cors;
+use actix_web::http::header;
+use std::env;
+
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
 use actix_web::body::BoxBody;
@@ -179,8 +183,31 @@ async fn main() -> std::io::Result<()> {
 
     println!("Init -> Server");
  
+    // Determine environment: default to "development" if DXN_ENV is not set
+    let env = env::var("DXN_ENV").unwrap_or_else(|_| "development".to_string());
+    let is_dev = env == "development";
+
     HttpServer::new(move || {
+        // Configure CORS based on environment
+        let cors = if is_dev {
+            // In development, allow any origin for easier local testing (web, simulator, devices)
+            Cors::default()
+                .allow_any_origin()
+                .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+                .max_age(3600)
+        } else {
+            // In non-development environments, restrict origins explicitly.
+            // Adjust allowed origins as needed for your deployment.
+            Cors::default()
+                .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+                .supports_credentials()
+                .max_age(3600)
+        };
+
         App::new()
+            .wrap(cors)
             // Configure app state
             .app_data(app.clone())
             // Configure routes from my_module under a specific scope
@@ -189,6 +216,9 @@ async fn main() -> std::io::Result<()> {
             )
             .service(web::scope("/api/function")
                 .configure(|cfg| { system::server::http::controllers::function::config(cfg, app.system.functions.clone())})
+            )
+            .service(web::scope("/api/config")
+                .configure(|cfg| { system::server::http::controllers::config::config(cfg)})
             )
             .service(web::scope("/server")
                 .configure(|cfg| system::server::http::controllers::server::config(cfg, app.system.server.clone()))

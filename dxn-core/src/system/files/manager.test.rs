@@ -2,6 +2,8 @@ use super::*;
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::thread;
+use std::time::Duration;
 
 // Helper function to create a temporary test directory
 fn setup_test_env() -> io::Result<()> {
@@ -205,10 +207,12 @@ fn test_add_file_existing() {
         // create_dir_all will create the directory if it doesn't exist
         fs::create_dir_all(parent).unwrap();
     }
-    
+    //Force wait for file to be completed
+    thread::sleep(Duration::from_millis(250));
+
     // Create file with content
     add_file_content(initial_content, test_path).unwrap();
-    
+    println!("Test file {}", &test_path);
     // Touch existing file (should not error)
     add_file(test_path).unwrap();
     

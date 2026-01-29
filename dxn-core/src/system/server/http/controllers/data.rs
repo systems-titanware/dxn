@@ -4,13 +4,42 @@ use crate::data::db::sqlite;
 use crate::data::db::sqlite::migrations;
 use crate::data::models::{SystemData, QueryParams}; 
  
-use rusqlite::{Row, types::ValueRef, Result};
+use rusqlite::{Row, types::ValueRef, Result, Error as SqlError};
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
 use std::collections::HashMap;
 use serde_json::{json, Value, Map};
+
+#[derive(Serialize)]
+pub struct ApiResponse<T> {
+    pub success: bool,
+    pub data: Option<T>,
+    pub error: Option<ApiError>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<ApiMeta>,
+}
+
+#[derive(Serialize)]
+pub struct ApiError {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<Value>,
+}
+
+#[derive(Serialize)]
+pub struct ApiMeta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page_size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_pages: Option<u32>,
+}
 
 // HELPER FUNCTIONS
 pub(crate) fn remove_last_char(s: &str) -> &str {
@@ -43,12 +72,39 @@ pub async fn get(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
 
     match result {
         Ok(content) => {
-            HttpResponse::Ok().json(json!(content))
+            HttpResponse::Ok().json(ApiResponse {
+                success: true,
+                data: Some(content),
+                error: None,
+                meta: None,
+            })
         }
         Err(err) => {
-            let err_message = format!("Error Getting Data: {}", err);
             eprintln!("Error Getting Data: {}", err);
-            HttpResponse::Ok().body(err_message)
+
+            let (status, code, message) = match err {
+                SqlError::QueryReturnedNoRows => (
+                    actix_web::http::StatusCode::NOT_FOUND,
+                    "not_found".to_string(),
+                    "Record not found".to_string(),
+                ),
+                _ => (
+                    actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal_error".to_string(),
+                    "An internal error occurred while retrieving the record".to_string(),
+                ),
+            };
+
+            HttpResponse::build(status).json(ApiResponse::<Value> {
+                success: false,
+                data: None,
+                error: Some(ApiError {
+                    code,
+                    message,
+                    details: None,
+                }),
+                meta: None,
+            })
         }
     }
 }
@@ -83,15 +139,9 @@ pub(crate) fn row_to_json_value(row: &Row) -> Result<Value> {
     
 // LIST
 pub async fn list(req: HttpRequest, query_params:  web::Query<QueryParams>) -> impl Responder {
-    let mut page_size = 10;
-    let mut page = 10;
-    let mut query = &String::new();
-
-    match query_params.page_size { Some(size) => { page_size = size }, None => {} }
-
-    match query_params.page { Some(size) => { page = size }, None => {} }
-
-    match &query_params.query { Some(qs) => { query = qs }, None => {} }
+    let page_size = query_params.page_size.unwrap_or(10) as u32;
+    let page = query_params.page.unwrap_or(1) as u32;
+    let query = query_params.query.clone().unwrap_or_default();
     
     // Define the closure in the parent function/scope
     let mapper = |row: &Row| {
@@ -100,16 +150,48 @@ pub async fn list(req: HttpRequest, query_params:  web::Query<QueryParams>) -> i
  
     let object = get_object_from_path(req.path());
 
-    let items = sqlite::repository::list("public".to_string(), object.to_string(), 5, 5, "queryStr".to_string(), mapper);
+    let items = sqlite::repository::list(
+        "public".to_string(),
+        object.to_string(),
+        page_size,
+        page,
+        query,
+        mapper,
+    );
     
     match items {
-        Ok(content) => {
-            HttpResponse::Ok().json(json!(content))
+        Ok(results) => {
+            let total = results.len() as u64;
+            let total_pages = if page_size > 0 {
+                ((total + page_size as u64 - 1) / page_size as u64) as u32
+            } else {
+                1
+            };
+
+            HttpResponse::Ok().json(ApiResponse {
+                success: true,
+                data: Some(results),
+                error: None,
+                meta: Some(ApiMeta {
+                    page: Some(page),
+                    page_size: Some(page_size),
+                    total: Some(total),
+                    total_pages: Some(total_pages),
+                }),
+            })
         }
         Err(err) => {
-            eprintln!("{:?}", err);
-            let error_string = err.to_string();
-            HttpResponse::Ok().json(json!(error_string))
+            eprintln!("Error listing data: {:?}", err);
+            HttpResponse::InternalServerError().json(ApiResponse::<Vec<Value>> {
+                success: false,
+                data: None,
+                error: Some(ApiError {
+                    code: "internal_error".to_string(),
+                    message: "An internal error occurred while listing records".to_string(),
+                    details: None,
+                }),
+                meta: None,
+            })
         }
     }
 }
@@ -139,26 +221,47 @@ where
     T: std::fmt::Debug + Deserialize<'static> + Serialize + 'static, // Required traits for T
 {
     // get object from path: /api/data/{object}
-    let object = get_object_from_path(req.path());
-    //Insert into db
+    let object = get_object_from_path(req.path()).to_string();
+    let body = payload.into_inner();
+
+    let keys: Vec<String> = body.keys().cloned().collect();
+    let values: Vec<Value> = body.values().cloned().collect();
+
     let result = sqlite::repository::insert(
         "public".to_string(), 
-        object.to_string(), 
-        payload.keys().cloned().collect(), 
-        payload.values().cloned().collect()
+        object.clone(), 
+        keys, 
+        values,
     );
-    println!("Table from db {}", object.to_string());
+    println!("Table from db {}", object);
+
     match result {
-        Ok(content) => {
-            println!("Successful insertion. Content: {}", content);
+        Ok(new_id) => {
+            HttpResponse::Created().json(ApiResponse {
+                success: true,
+                data: Some(json!({
+                    "id": new_id,
+                    "object": object,
+                    "attributes": body
+                })),
+                error: None,
+                meta: None,
+            })
         }
         Err(err) => {
             eprintln!("Error creating object: {}", err);
+            HttpResponse::InternalServerError().json(ApiResponse::<Value> {
+                success: false,
+                data: None,
+                error: Some(ApiError {
+                    code: "internal_error".to_string(),
+                    message: "An internal error occurred while creating the record".to_string(),
+                    details: None,
+                }),
+                meta: None,
+            })
         }
     }
-
-    let str = format!("Post {}, country {}", "&payload.data.name", "&payload.data.country");
-    HttpResponse::Ok().body(str)
 }
 
 // PUT
@@ -173,28 +276,60 @@ where
     T: std::fmt::Debug + Deserialize<'static> + Serialize + 'static, // Required traits for T
 {
     let id = path.into_inner();
-    let object = get_object_from_path(req.path());
+    let object = get_object_from_path(req.path()).to_string();
+    let body = payload.into_inner();
+
+    let keys: Vec<String> = body.keys().cloned().collect();
+    let values: Vec<Value> = body.values().cloned().collect();
 
     let result = sqlite::repository::update(
         "public".to_string(), 
-        object.to_string(),
+        object.clone(),
         id.clone(),
-        payload.keys().cloned().collect(), 
-        payload.values().cloned().collect()
+        keys, 
+        values,
     );
 
-    match(result) {
-        Ok(content) => {
-            println!("Update success {}", content);
+    match result {
+        Ok(rows_affected) => {
+            if rows_affected == 0 {
+                HttpResponse::NotFound().json(ApiResponse::<Value> {
+                    success: false,
+                    data: None,
+                    error: Some(ApiError {
+                        code: "not_found".to_string(),
+                        message: "Record not found".to_string(),
+                        details: None,
+                    }),
+                    meta: None,
+                })
+            } else {
+                HttpResponse::Ok().json(ApiResponse {
+                    success: true,
+                    data: Some(json!({
+                        "id": id,
+                        "object": object,
+                        "updated": true
+                    })),
+                    error: None,
+                    meta: None,
+                })
+            }
         }
         Err(err) => {
-            println!("Update error: {}", err);
+            eprintln!("Update error: {}", err);
+            HttpResponse::InternalServerError().json(ApiResponse::<Value> {
+                success: false,
+                data: None,
+                error: Some(ApiError {
+                    code: "internal_error".to_string(),
+                    message: "An internal error occurred while updating the record".to_string(),
+                    details: None,
+                }),
+                meta: None,
+            })
         }
     }
-
-
-    let str = format!("Update user_id {}!", id);
-    HttpResponse::Ok().body(str)
 }
 
 // DELETE
@@ -205,17 +340,46 @@ pub async fn delete(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
 
     let delete = sqlite::repository::delete("public".to_string(), object.to_string(), id);
 
-    match (delete) {
-        Ok(content) => {
-            println!("Deleted {}", content);
+    match delete {
+        Ok(rows_affected) => {
+            if rows_affected == 0 {
+                HttpResponse::NotFound().json(ApiResponse::<Value> {
+                    success: false,
+                    data: None,
+                    error: Some(ApiError {
+                        code: "not_found".to_string(),
+                        message: "Record not found".to_string(),
+                        details: None,
+                    }),
+                    meta: None,
+                })
+            } else {
+                HttpResponse::Ok().json(ApiResponse {
+                    success: true,
+                    data: Some(json!({
+                        "id": id,
+                        "object": object,
+                        "deleted": true
+                    })),
+                    error: None,
+                    meta: None,
+                })
+            }
         }
         Err(err) => { 
-            println!("Delete error: {}", err);
+            eprintln!("Delete error: {}", err);
+            HttpResponse::InternalServerError().json(ApiResponse::<Value> {
+                success: false,
+                data: None,
+                error: Some(ApiError {
+                    code: "internal_error".to_string(),
+                    message: "An internal error occurred while deleting the record".to_string(),
+                    details: None,
+                }),
+                meta: None,
+            })
         }
     }
-
-    let str = format!("Delete user_id {}!", id);
-    HttpResponse::Ok().body(str)
 } 
 
 // ============================================================================
