@@ -153,36 +153,45 @@ DXN servers operate in a distributed service mesh where:
 
 ### Current Features ✅
 
-**Data Models**
-- Define schemas in `config.json` (root directory) to auto-generate database tables and REST APIs
-- Public/private database separation
+**Data Models & Schemas**
+- Define schemas in `config.json` or create at runtime via API
 - Automatic CRUD endpoints (`/api/data/{model_name}/`)
+- Schema management API (`/api/schema/`)
+- Icon support for UI rendering
+
+**Event Sourcing**
+- Automatic event emission for all CRUD operations
+- Event store with full audit trail
+- Query events by aggregate, schema, or time range
+- Rebuild data from events (`/api/events/rebuild/{schema}`)
+
+**File Management**
+- Flexible file storage with provider abstraction
+- Local filesystem provider (extensible to SFTP, S3, etc.)
+- Config-defined or runtime-created directories
+- Full file operations: list, read, write, delete, mkdir
 
 **Functions**
-- Multiple execution types: WASM, Native Rust, Remote HTTP, Script (TypeScript/JavaScript)
+- Multiple execution types: WASM, Native Rust, Remote HTTP, Script
 - Call from server routes or API endpoints
 - Pass typed parameters and return results
 
 **Integrations**
 - Local integrations: Rust crates for third-party systems
 - Remote integrations: Connect to other servers via service mesh
-- Unified API for both local and remote integrations
 
 **Server Routes**
-- Define routes in `config.json` (root directory)
+- Define routes in `config.json`
 - Render HTML templates with Handlebars
 - Call functions to process data before rendering
-- Nested route structures
 
 **Vault System**
 - Encrypted key-value storage for sensitive data
 - Reference vault values in data model definitions
-- Automatic encryption at rest
 
 **Service Mesh**
 - P2P-based connections between servers
 - Service discovery and registration
-- Health monitoring and routing
 
 ### Planned Features 📋
 
@@ -259,28 +268,20 @@ DXN gives you:
 
 ### Implemented ✅
 - Core server with REST APIs
-- Data model definitions and auto-generated CRUD endpoints
+- Data models with auto-generated CRUD endpoints
+- Schema management API (runtime creation/modification)
+- Event sourcing with full audit trail
+- File management with provider abstraction
 - Function system (WASM, Native, Remote, Script)
-- Integration system (local and remote via service mesh)
-- Server routes with template rendering (Handlebars)
-- Public/private definition separation
-- Vault system for encrypted key-value storage
-- Service mesh architecture (basic structure)
-
-### In Progress 🚧
-- Service mesh discovery and routing enhancements
-- Remote integration calls via HTTP
+- Integration system (local and remote)
+- Server routes with Handlebars templates
+- Vault system for encrypted storage
 
 ### Planned 📋
-- CQRS automatically generated from CRUD events
 - OAuth-based authorization and scope management
-- Automatic scope generation for public definitions
-- KeyVault with preloaded data on initialization
-- ZKSync wallet integration for access requests
+- Additional file providers (SFTP, S3)
 - Mobile client application
-- Third-party cloud registration
-- Server encryption based on shared secrets
-- IDP (Identity Provider) integration
+- ZKSync wallet integration
 
 ---
 

@@ -16,7 +16,10 @@ use std::sync::{Mutex, RwLock};
 use rusqlite::{params, Connection, Result};
 use data::db::sqlite::*;
 
-use crate::data::models::{SystemData, SystemDataModel, SystemDataModelField};
+use crate::data::models::{SystemData, SystemDataModel, SystemDataModelField, SystemFiles, SystemFileDirectory};
+use crate::data::db::sqlite::repository_schema;
+use crate::data::db::sqlite::repository_events;
+use crate::data::db::sqlite::repository_files;
 
 use crate::functions::models::SystemFunctions;
 use crate::system::server::models::{SystemServer, SystemServerRoute};
@@ -50,14 +53,13 @@ fn init_db(db_name: String, model: SystemDataModel) -> Result<()> {
         .collect::<Vec<SystemDataModelField>>() // Collect the results into a new Vec<Item>
         .pop(); // Get last primary
 
-    match(primary) {
+    match primary {
         Some(primary_field) => {
             columns.push(repository::create_col_primary(primary_field.name, primary_field.datatype));
-            //do nothing
         },
         None => {
-            //Insert id as primary
-            columns.push(repository::create_col_primary("id".to_string(), "number".to_string()));
+            // Insert id as primary key with TEXT type for UUID v7 support
+            columns.push(repository::create_col_primary("id".to_string(), "TEXT".to_string()));
         }
     } 
     // Filter for primary
@@ -80,6 +82,100 @@ fn init_db(db_name: String, model: SystemDataModel) -> Result<()> {
     Ok(())
 }
 
+/// Bootstraps data schemas using the hybrid approach:
+/// 1. Initialize the schema table
+/// 2. Sync config-defined schemas into the repository (source = "config")
+/// 3. Load and initialize all schemas (config + runtime) from the repository
+fn bootstrap_schemas(config_data: SystemData) -> Result<()> {
+    // Step 1: Initialize the schema table
+    repository_schema::init_schema_table()
+        .map_err(|_e| rusqlite::Error::InvalidQuery)?;
+    
+    // Step 1b: Initialize the events table for event sourcing
+    repository_events::init_events_table()
+        .map_err(|_e| rusqlite::Error::InvalidQuery)?;
+    
+    // Step 2: Sync config-defined schemas into the repository
+    if let Some(schemas) = config_data.public {
+        for mut schema in schemas {
+            // Config schemas default to db="public" if not specified
+            if schema.db.is_empty() {
+                schema.db = "public".to_string();
+            }
+            
+            // Upsert into repository with source="config"
+            if let Err(e) = repository_schema::upsert_schema(&schema, "config") {
+                eprintln!("Failed to register config schema '{}': {}", schema.name, e);
+            }
+        }
+    }
+    
+    // Handle private schemas from config
+    if let Some(schemas) = config_data.private {
+        for mut schema in schemas {
+            if schema.db.is_empty() {
+                schema.db = "private".to_string();
+            }
+            
+            if let Err(e) = repository_schema::upsert_schema(&schema, "config") {
+                eprintln!("Failed to register config schema '{}': {}", schema.name, e);
+            }
+        }
+    }
+    
+    // Step 3: Load all schemas from repository and create their database tables
+    match repository_schema::get_all_schemas() {
+        Ok(all_schemas) => {
+            for schema in all_schemas {
+                let db_name = if schema.db.is_empty() { "public".to_string() } else { schema.db.clone() };
+                if let Err(e) = init_db(db_name, schema.clone()) {
+                    eprintln!("Failed to init table for schema '{}': {}", schema.name, e);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to load schemas from repository: {}", e);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Bootstraps file directories from config
+/// 
+/// 1. Initialize the file_directories table
+/// 2. Sync config-defined directories into the repository (source = "config")
+/// 3. Create filesystem dirs under project_root so uploads stay in project
+fn bootstrap_files(config_files: Option<SystemFiles>, project_root: &str) -> Result<()> {
+    // Step 1: Initialize the file_directories table
+    repository_files::init_files_table()
+        .map_err(|_e| rusqlite::Error::InvalidQuery)?;
+    
+    // Step 2: Sync config-defined directories into the repository
+    if let Some(files_config) = config_files {
+        if let Some(directories) = files_config.directories {
+            for directory in directories {
+                // Upsert into repository with source="config"
+                if let Err(e) = repository_files::upsert_directory(&directory, "config") {
+                    eprintln!("Failed to register config file directory '{}': {}", directory.name, e);
+                } else {
+                    // Ensure the directory exists on the filesystem under project root
+                    if directory.provider == "local" {
+                        let base_path = format!("{}/dxn-files{}", project_root, directory.path);
+                        if let Err(e) = std::fs::create_dir_all(&base_path) {
+                            eprintln!("Warning: Failed to create directory '{}': {}", base_path, e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Legacy function - kept for reference but replaced by bootstrap_models
+#[allow(dead_code)]
 fn create_database(data: SystemData) -> Result<()> {
     match data.public {
         Some(vec) => {
@@ -158,22 +254,30 @@ async fn main() -> std::io::Result<()> {
     
     let system_data = system::serialization::json::deserialize::<System>(file_path);
     
+    let project_root = std::env::current_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| ".".to_string());
     let app = web::Data::new(AppState {
         app_name: String::from("dxnet"),
         counter: RwLock::new(0),
         db_name: String::from("person"),
         // TODO: Fix below to match if let, else
         system: system_data.unwrap(),
-        uuid: Uuid::now_v7()
+        uuid: Uuid::now_v7(),
+        project_root,
     });
 
 
     /// DB
     // Note: config.json is now loaded above and used for system initialization
  
-    // Create DB
-    println!("Init -> Database");
-    create_database(app.system.data.clone()); 
+    // Bootstrap schemas (hybrid approach: config + runtime schemas)
+    println!("Init -> Schema Repository");
+    bootstrap_schemas(app.system.data.clone()); 
+    
+    // Bootstrap file directories (hybrid approach: config + runtime directories)
+    println!("Init -> File Directories");
+    bootstrap_files(app.system.files.clone(), &app.project_root);
     
     println!("Init -> Integrations");
     create_integrations(app.system.integrations.clone()); 
@@ -212,13 +316,22 @@ async fn main() -> std::io::Result<()> {
             .app_data(app.clone())
             // Configure routes from my_module under a specific scope
             .service(web::scope("/api/data")
-                .configure(|cfg| { system::server::http::controllers::data::config(cfg, app.system.data.clone())})
+                .configure(system::server::http::controllers::data::config)
             )
             .service(web::scope("/api/function")
                 .configure(|cfg| { system::server::http::controllers::function::config(cfg, app.system.functions.clone())})
             )
             .service(web::scope("/api/config")
                 .configure(|cfg| { system::server::http::controllers::config::config(cfg)})
+            )
+            .service(web::scope("/api/schema")
+                .configure(|cfg| { system::server::http::controllers::schema::config(cfg)})
+            )
+            .service(web::scope("/api/events")
+                .configure(system::server::http::controllers::events::config)
+            )
+            .service(web::scope("/api/files")
+                .configure(system::server::http::controllers::files::config)
             )
             .service(web::scope("/server")
                 .configure(|cfg| system::server::http::controllers::server::config(cfg, app.system.server.clone()))

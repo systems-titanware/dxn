@@ -1,11 +1,11 @@
 use actix_web::{web, HttpResponse, Responder, HttpRequest};
 use crate::system::models::AppState;
 use crate::data::models::QueryParams;
+use crate::data::db::sqlite::repository_schema;
 use crate::system::server::http::controllers::server::flatten_routes;
-use crate::system::server::models::FlattenRoutePath;
+use crate::system::server::models::{FlattenRoutePath, ListResponse, Pagination};
 use crate::system::server::constants::GLOBAL_BASE_ROUTE_PATH;
-use serde::{Serialize};
-use serde_json::json;
+use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Serialize, Clone)]
@@ -84,60 +84,71 @@ pub async fn get_functions(
     
     let total = data.system.functions.public.as_ref()
         .map(|v| v.len())
-        .unwrap_or(0);
-    
-    HttpResponse::Ok().json(json!({
-        "data": paginated_functions,
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "total_pages": (total as f64 / page_size as f64).ceil() as u32
-        }
-    }))
+        .unwrap_or(0) as u32;
+    let total_pages = if page_size > 0 {
+        ((total as f64) / (page_size as f64)).ceil() as u32
+    } else {
+        0
+    };
+    HttpResponse::Ok().json(ListResponse {
+        data: paginated_functions,
+        pagination: Pagination {
+            page: page as u32,
+            page_size: page_size as u32,
+            total,
+            total_pages,
+        },
+    })
 }
 
-/// GET handler for listing public data models
+/// GET handler for listing data models from the models registry
 /// 
 /// Route: /api/config/data/
 /// Query params: page_size (optional), page (optional)
 /// 
-/// Returns: Paginated list of public data models
+/// Returns: Paginated list of all data models (config + runtime)
+/// 
+/// Note: This now reads from the models registry instead of in-memory config,
+/// allowing it to include runtime-created models.
 pub async fn get_data(
-    req: HttpRequest,
+    _req: HttpRequest,
     query_params: web::Query<QueryParams>,
-    data: web::Data<AppState>,
+    _data: web::Data<AppState>,
 ) -> impl Responder {
     let page_size = query_params.page_size.unwrap_or(10);
     let page = query_params.page.unwrap_or(1);
     
-    let data_models = match &data.system.data.public {
-        Some(vec) => vec.clone(),
-        None => Vec::new(),
+    // Read from schema repository (includes both config and runtime schemas)
+    let data_models = match repository_schema::get_all_schemas() {
+        Ok(schemas) => schemas,
+        Err(e) => {
+            eprintln!("Failed to load schemas from repository: {}", e);
+            // Fallback: return empty list
+            Vec::new()
+        }
     };
     
-    // Calculate pagination
+    let total = data_models.len() as u32;
+    let total_pages = if page_size > 0 {
+        ((total as f64) / (page_size as f64)).ceil() as u32
+    } else {
+        0
+    };
     let start = ((page - 1) as usize) * (page_size as usize);
-    
     let paginated_data: Vec<_> = data_models
         .into_iter()
         .skip(start)
         .take(page_size as usize)
         .collect();
-    
-    let total = data.system.data.public.as_ref()
-        .map(|v| v.len())
-        .unwrap_or(0);
-    
-    HttpResponse::Ok().json(json!({
-        "data": paginated_data,
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "total_pages": (total as f64 / page_size as f64).ceil() as u32
-        }
-    }))
+    HttpResponse::Ok().json(ListResponse {
+        data: paginated_data,
+        pagination: Pagination {
+            page: page as u32,
+            page_size: page_size as u32,
+            total,
+            total_pages,
+        },
+    })
 }
 
 /// GET handler for listing public server routes
@@ -160,25 +171,27 @@ pub async fn get_server_routes(
     // 2) Build DTOs with full_path and url
     let dtos = build_server_route_dtos(&req, &flattened);
 
-    let total = dtos.len();
-
-    // 3) Apply existing pagination semantics on DTO list
+    let total = dtos.len() as u32;
+    let total_pages = if page_size > 0 {
+        ((total as f64) / (page_size as f64)).ceil() as u32
+    } else {
+        0
+    };
     let start = (page.saturating_sub(1)) * page_size;
     let paginated_routes: Vec<ServerRouteConfigDto> = dtos
         .into_iter()
         .skip(start)
         .take(page_size)
         .collect();
-
-    HttpResponse::Ok().json(json!({
-        "data": paginated_routes,
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "total_pages": (total as f64 / page_size as f64).ceil() as u32
-        }
-    }))
+    HttpResponse::Ok().json(ListResponse {
+        data: paginated_routes,
+        pagination: Pagination {
+            page: page as u32,
+            page_size: page_size as u32,
+            total,
+            total_pages,
+        },
+    })
 }
 
 /// Configure config routes

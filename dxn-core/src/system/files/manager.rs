@@ -22,9 +22,10 @@ pub fn read_file(path: &str) -> io::Result<String> {
     fs::read_to_string(&full_path)
 }
 
-// A simple implementation of `% echo s > path`
+// A simple implementation of `% echo s >> path` (append)
+// Sync guaranteed: Uses sync_all() to ensure data is flushed to disk before returning
 pub fn add_content(str: &str, path: &str) -> io::Result<()> {
-    let mut full_path = get_full_path(path);
+    let full_path = get_full_path(path);
     // Open a file with append option.
     // .append(true) ensures new data is added to the end of the file.
     // .create(true) will create the file if it doesn't exist.
@@ -35,10 +36,14 @@ pub fn add_content(str: &str, path: &str) -> io::Result<()> {
 
     // Write content to the file.
     // .write_all() takes a byte slice.
-    file.write_all(str.as_bytes())
+    file.write_all(str.as_bytes())?;
+    file.sync_all()?;  // Forces flush to disk (not just OS buffers)
+    
+    Ok(())
 }
 
 // A simple implementation of `% echo s > path`
+// Sync guaranteed: Uses sync_all() to ensure data is flushed to disk before returning
 pub fn add_file_content(s: &str, path: &str) -> io::Result<()> {
     let full_path = get_full_path(path);
     // Ensure parent directory exists
@@ -51,8 +56,13 @@ pub fn add_file_content(s: &str, path: &str) -> io::Result<()> {
         // or do nothing if it already exists as a directory
         fs::create_dir_all(parent)?;
     }
-    // Use fs::write which handles file creation and writing atomically
-    fs::write(&full_path, s.as_bytes())
+    
+    // Sync guaranteed: Create file, write content, and flush to disk
+    let mut file = File::create(&full_path)?;
+    file.write_all(s.as_bytes())?;
+    file.sync_all()?;  // Forces flush to disk (not just OS buffers)
+    
+    Ok(())
 }
 
 // A simple implementation of `% touch path` (ignores existing files)

@@ -2,7 +2,10 @@
 use actix_web::{ web,  HttpResponse, HttpRequest, Responder}; 
 use crate::data::db::sqlite; 
 use crate::data::db::sqlite::migrations;
-use crate::data::models::{SystemData, QueryParams}; 
+use crate::data::db::sqlite::repository_schema;
+use crate::data::db::sqlite::repository_events;
+use crate::data::models::{QueryParams, EventType}; 
+use crate::system::server::models::{ApiResultResponse, ApiErrorWithCode, DataApiMeta, ListResponse, Pagination};
  
 use rusqlite::{Row, types::ValueRef, Result, Error as SqlError};
 use std::fmt::Debug;
@@ -12,36 +15,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use serde_json::{json, Value, Map};
 
-#[derive(Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: Option<T>,
-    pub error: Option<ApiError>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub meta: Option<ApiMeta>,
-}
-
-#[derive(Serialize)]
-pub struct ApiError {
-    pub code: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<Value>,
-}
-
-#[derive(Serialize)]
-pub struct ApiMeta {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page_size: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_pages: Option<u32>,
-}
-
+// ============================================================================
 // HELPER FUNCTIONS
+// ============================================================================
+
 pub(crate) fn remove_last_char(s: &str) -> &str {
     match s.char_indices().next_back() {
         Some((i, _)) => &s[..i], // Slice from the beginning up to the start of the last char
@@ -58,21 +35,122 @@ pub(crate) fn get_object_from_path(full_path: &str) -> &str {
     return obj_str;
 }
 
+// ============================================================================
+// SHARED VALIDATION & ERROR HELPERS (DRY)
+// ============================================================================
+
+/// Validates that a schema exists and is active (not deleted).
+/// Returns `Some(HttpResponse)` with error if schema doesn't exist, is deleted, or on error.
+/// Returns `None` if schema is valid, exists, and is active.
+fn validate_schema_exists(schema_name: &str) -> Option<HttpResponse> {
+    // First check if schema exists and is active
+    match repository_schema::schema_exists(schema_name) {
+        Ok(true) => None, // Schema exists and is active, continue
+        Ok(false) => {
+            // Check if it's deleted
+            match repository_schema::is_schema_deleted(schema_name) {
+                Ok(true) => Some(schema_deleted_response(schema_name)),
+                _ => Some(schema_not_found_response(schema_name)),
+            }
+        }
+        Err(e) => {
+            eprintln!("Error checking schema existence: {}", e);
+            Some(internal_error_response("Failed to validate schema"))
+        }
+    }
+}
+
+/// Creates a standardized "schema not found" error response
+fn schema_not_found_response(schema_name: &str) -> HttpResponse {
+    HttpResponse::NotFound().json(ApiResultResponse::<Value> {
+        success: false,
+        data: None,
+        error: Some(ApiErrorWithCode {
+            code: "schema_not_found".to_string(),
+            message: format!("Schema '{}' does not exist. Create it first via POST /api/schema", schema_name),
+            details: None,
+        }),
+        meta: None,
+    })
+}
+
+/// Creates a standardized "schema deleted" error response
+fn schema_deleted_response(schema_name: &str) -> HttpResponse {
+    HttpResponse::Gone().json(ApiResultResponse::<Value> {
+        success: false,
+        data: None,
+        error: Some(ApiErrorWithCode {
+            code: "schema_deleted".to_string(),
+            message: format!("Schema '{}' has been deleted. Restore it via PUT /api/schema/{}/restore to access data.", schema_name, schema_name),
+            details: None,
+        }),
+        meta: None,
+    })
+}
+
+/// Creates a standardized "record not found" error response
+fn record_not_found_response() -> HttpResponse {
+    HttpResponse::NotFound().json(ApiResultResponse::<Value> {
+        success: false,
+        data: None,
+        error: Some(ApiErrorWithCode {
+            code: "not_found".to_string(),
+            message: "Record not found".to_string(),
+            details: None,
+        }),
+        meta: None,
+    })
+}
+
+/// Creates a standardized internal error response
+fn internal_error_response(message: &str) -> HttpResponse {
+    HttpResponse::InternalServerError().json(ApiResultResponse::<Value> {
+        success: false,
+        data: None,
+        error: Some(ApiErrorWithCode {
+            code: "internal_error".to_string(),
+            message: message.to_string(),
+            details: None,
+        }),
+        meta: None,
+    })
+}
+
+/// Retrieves the current state of a record for event sourcing.
+/// Returns None if record doesn't exist or on error.
+fn get_record_state(schema_name: &str, id: &str) -> Option<serde_json::Value> {
+    let mapper = |row: &Row| row_to_json_value(row);
+    
+    match sqlite::repository::get("public".to_string(), schema_name.to_string(), id.to_string(), mapper) {
+        Ok(state) => Some(state),
+        Err(_) => None,
+    }
+}
+
+// ============================================================================
+// CRUD HANDLERS
+// ============================================================================
+
 // GET
-/// extract path info from "/users/{user_id}/{friend}" url
-/// {user_id} - deserializes to a u32
-pub async fn get(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
-    let id = path.into_inner();
+/// Retrieves a single record by ID (supports both numeric and UUID formats)
+/// Path: /{object_name}/{id}
+pub async fn get(req: HttpRequest, path: web::Path<(String, String)>) -> impl Responder {
+    let (object_name, id) = path.into_inner();
+    
+    // Validate schema exists (dynamic route support)
+    if let Some(error_response) = validate_schema_exists(&object_name) {
+        return error_response;
+    }
+    
     let mapper = |row: &Row| {
         row_to_json_value(row)
     };
 
-    let object = get_object_from_path(req.path());
-    let result = sqlite::repository::get("public".to_string(), object.to_string(), id, mapper);
+    let result = sqlite::repository::get("public".to_string(), object_name.clone(), id, mapper);
 
     match result {
         Ok(content) => {
-            HttpResponse::Ok().json(ApiResponse {
+            HttpResponse::Ok().json(ApiResultResponse {
                 success: true,
                 data: Some(content),
                 error: None,
@@ -81,30 +159,10 @@ pub async fn get(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
         }
         Err(err) => {
             eprintln!("Error Getting Data: {}", err);
-
-            let (status, code, message) = match err {
-                SqlError::QueryReturnedNoRows => (
-                    actix_web::http::StatusCode::NOT_FOUND,
-                    "not_found".to_string(),
-                    "Record not found".to_string(),
-                ),
-                _ => (
-                    actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    "internal_error".to_string(),
-                    "An internal error occurred while retrieving the record".to_string(),
-                ),
-            };
-
-            HttpResponse::build(status).json(ApiResponse::<Value> {
-                success: false,
-                data: None,
-                error: Some(ApiError {
-                    code,
-                    message,
-                    details: None,
-                }),
-                meta: None,
-            })
+            match err {
+                SqlError::QueryReturnedNoRows => record_not_found_response(),
+                _ => internal_error_response("An internal error occurred while retrieving the record"),
+            }
         }
     }
 }
@@ -139,6 +197,13 @@ pub(crate) fn row_to_json_value(row: &Row) -> Result<Value> {
     
 // LIST
 pub async fn list(req: HttpRequest, query_params:  web::Query<QueryParams>) -> impl Responder {
+    let object = get_object_from_path(req.path());
+    
+    // Validate schema exists (dynamic route support)
+    if let Some(error_response) = validate_schema_exists(object) {
+        return error_response;
+    }
+    
     let page_size = query_params.page_size.unwrap_or(10) as u32;
     let page = query_params.page.unwrap_or(1) as u32;
     let query = query_params.query.clone().unwrap_or_default();
@@ -147,8 +212,6 @@ pub async fn list(req: HttpRequest, query_params:  web::Query<QueryParams>) -> i
     let mapper = |row: &Row| {
         row_to_json_value(row)
     };
- 
-    let object = get_object_from_path(req.path());
 
     let items = sqlite::repository::list(
         "public".to_string(),
@@ -161,37 +224,25 @@ pub async fn list(req: HttpRequest, query_params:  web::Query<QueryParams>) -> i
     
     match items {
         Ok(results) => {
-            let total = results.len() as u64;
+            let total = results.len() as u32;
             let total_pages = if page_size > 0 {
-                ((total + page_size as u64 - 1) / page_size as u64) as u32
+                ((total as f64 + page_size as f64 - 1.0) / page_size as f64).ceil() as u32
             } else {
                 1
             };
-
-            HttpResponse::Ok().json(ApiResponse {
-                success: true,
-                data: Some(results),
-                error: None,
-                meta: Some(ApiMeta {
-                    page: Some(page),
-                    page_size: Some(page_size),
-                    total: Some(total),
-                    total_pages: Some(total_pages),
-                }),
+            HttpResponse::Ok().json(ListResponse {
+                data: results,
+                pagination: Pagination {
+                    page,
+                    page_size,
+                    total,
+                    total_pages,
+                },
             })
         }
         Err(err) => {
             eprintln!("Error listing data: {:?}", err);
-            HttpResponse::InternalServerError().json(ApiResponse::<Vec<Value>> {
-                success: false,
-                data: None,
-                error: Some(ApiError {
-                    code: "internal_error".to_string(),
-                    message: "An internal error occurred while listing records".to_string(),
-                    details: None,
-                }),
-                meta: None,
-            })
+            internal_error_response("An internal error occurred while listing records")
         }
     }
 }
@@ -216,28 +267,66 @@ pub enum MyError {
 }
 
 
+// POST
+/// Creates a new record and emits a Created event
+/// 
+/// # Event Sourcing Architecture
+/// 
+/// TODO: Move to event-first architecture:
+/// Currently using dual-write pattern (write to data table, then emit event).
+/// Future improvement: Emit event first (source of truth), then apply to read model via projection.
+/// 
+/// ```rust
+/// // Current (dual-write):
+/// repository::insert(...);  // Write to data table
+/// repository_events::create_and_append_event(...);  // Then emit event
+/// 
+/// // Future (event-first):
+/// let event = repository_events::create_and_append_event(...);  // Emit event first
+/// apply_event_to_read_model(&event);  // Projection updates data table
+/// ```
 pub async fn post<T>(req: HttpRequest, payload: web::Json<HashMap<String, serde_json::Value>>) -> impl Responder 
 where
     T: std::fmt::Debug + Deserialize<'static> + Serialize + 'static, // Required traits for T
 {
     // get object from path: /api/data/{object}
     let object = get_object_from_path(req.path()).to_string();
+    
+    // Validate schema exists (dynamic route support)
+    if let Some(error_response) = validate_schema_exists(&object) {
+        return error_response;
+    }
+    
     let body = payload.into_inner();
 
     let keys: Vec<String> = body.keys().cloned().collect();
     let values: Vec<Value> = body.values().cloned().collect();
 
+    // TODO: Event-first - emit Created event here, then apply via projection
     let result = sqlite::repository::insert(
         "public".to_string(), 
         object.clone(), 
         keys, 
         values,
     );
-    println!("Table from db {}", object);
 
     match result {
         Ok(new_id) => {
-            HttpResponse::Created().json(ApiResponse {
+            // Emit Created event for event sourcing
+            let aggregate_id = new_id.to_string();
+            if let Err(e) = repository_events::create_and_append_event(
+                &aggregate_id,
+                &object,
+                EventType::Created,
+                json!(body),
+                None,
+                None, // TODO: Extract user_id from auth header
+            ) {
+                eprintln!("Warning: Failed to emit Created event: {}", e);
+                // Don't fail the request, just log the warning
+            }
+            
+            HttpResponse::Created().json(ApiResultResponse {
                 success: true,
                 data: Some(json!({
                     "id": new_id,
@@ -250,16 +339,7 @@ where
         }
         Err(err) => {
             eprintln!("Error creating object: {}", err);
-            HttpResponse::InternalServerError().json(ApiResponse::<Value> {
-                success: false,
-                data: None,
-                error: Some(ApiError {
-                    code: "internal_error".to_string(),
-                    message: "An internal error occurred while creating the record".to_string(),
-                    details: None,
-                }),
-                meta: None,
-            })
+            internal_error_response("An internal error occurred while creating the record")
         }
     }
 }
@@ -271,20 +351,36 @@ where
     T: std::fmt::Debug + Deserialize<'static> + Serialize + 'static, // Required traits for T
 */
 
-pub async fn put<T>(req: HttpRequest, path: web::Path<String>, payload: web::Json<HashMap<String, serde_json::Value>>) -> impl Responder 
+// PUT
+/// Updates an existing record by ID and emits an Updated event
+/// Path: /{object_name}/{id}
+/// 
+/// # Event Sourcing Architecture
+/// 
+/// TODO: Move to event-first architecture (see POST handler for details)
+pub async fn put<T>(req: HttpRequest, path: web::Path<(String, String)>, payload: web::Json<HashMap<String, serde_json::Value>>) -> impl Responder 
 where
     T: std::fmt::Debug + Deserialize<'static> + Serialize + 'static, // Required traits for T
 {
-    let id = path.into_inner();
-    let object = get_object_from_path(req.path()).to_string();
+    let (object_name, id) = path.into_inner();
+    
+    // Validate schema exists (dynamic route support)
+    if let Some(error_response) = validate_schema_exists(&object_name) {
+        return error_response;
+    }
+    
     let body = payload.into_inner();
+
+    // Get previous state before update (for event sourcing)
+    let previous_state = get_record_state(&object_name, &id);
 
     let keys: Vec<String> = body.keys().cloned().collect();
     let values: Vec<Value> = body.values().cloned().collect();
 
+    // TODO: Event-first - emit Updated event here, then apply via projection
     let result = sqlite::repository::update(
         "public".to_string(), 
-        object.clone(),
+        object_name.clone(),
         id.clone(),
         keys, 
         values,
@@ -293,22 +389,25 @@ where
     match result {
         Ok(rows_affected) => {
             if rows_affected == 0 {
-                HttpResponse::NotFound().json(ApiResponse::<Value> {
-                    success: false,
-                    data: None,
-                    error: Some(ApiError {
-                        code: "not_found".to_string(),
-                        message: "Record not found".to_string(),
-                        details: None,
-                    }),
-                    meta: None,
-                })
+                record_not_found_response()
             } else {
-                HttpResponse::Ok().json(ApiResponse {
+                // Emit Updated event for event sourcing
+                if let Err(e) = repository_events::create_and_append_event(
+                    &id,
+                    &object_name,
+                    EventType::Updated,
+                    json!(body),
+                    previous_state,
+                    None, // TODO: Extract user_id from auth header
+                ) {
+                    eprintln!("Warning: Failed to emit Updated event: {}", e);
+                }
+                
+                HttpResponse::Ok().json(ApiResultResponse {
                     success: true,
                     data: Some(json!({
                         "id": id,
-                        "object": object,
+                        "object": object_name,
                         "updated": true
                     })),
                     error: None,
@@ -318,47 +417,54 @@ where
         }
         Err(err) => {
             eprintln!("Update error: {}", err);
-            HttpResponse::InternalServerError().json(ApiResponse::<Value> {
-                success: false,
-                data: None,
-                error: Some(ApiError {
-                    code: "internal_error".to_string(),
-                    message: "An internal error occurred while updating the record".to_string(),
-                    details: None,
-                }),
-                meta: None,
-            })
+            internal_error_response("An internal error occurred while updating the record")
         }
     }
 }
 
 // DELETE
-//pub async fn delete(path: web::Path<(u32)>, body: web::Body<_>) -> impl Responder {
-pub async fn delete(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
-    let id = path.into_inner();
-    let object = get_object_from_path(req.path());
+/// Deletes a record by ID and emits a Deleted event
+/// Path: /{object_name}/{id}
+/// 
+/// # Event Sourcing Architecture
+/// 
+/// TODO: Move to event-first architecture (see POST handler for details)
+pub async fn delete(req: HttpRequest, path: web::Path<(String, String)>) -> impl Responder {
+    let (object_name, id) = path.into_inner();
+    
+    // Validate schema exists (dynamic route support)
+    if let Some(error_response) = validate_schema_exists(&object_name) {
+        return error_response;
+    }
 
-    let delete = sqlite::repository::delete("public".to_string(), object.to_string(), id);
+    // Get previous state before delete (for event sourcing)
+    let previous_state = get_record_state(&object_name, &id);
+
+    // TODO: Event-first - emit Deleted event here, then apply via projection
+    let delete = sqlite::repository::delete("public".to_string(), object_name.clone(), id.clone());
 
     match delete {
         Ok(rows_affected) => {
             if rows_affected == 0 {
-                HttpResponse::NotFound().json(ApiResponse::<Value> {
-                    success: false,
-                    data: None,
-                    error: Some(ApiError {
-                        code: "not_found".to_string(),
-                        message: "Record not found".to_string(),
-                        details: None,
-                    }),
-                    meta: None,
-                })
+                record_not_found_response()
             } else {
-                HttpResponse::Ok().json(ApiResponse {
+                // Emit Deleted event for event sourcing
+                if let Err(e) = repository_events::create_and_append_event(
+                    &id,
+                    &object_name,
+                    EventType::Deleted,
+                    json!({"deleted": true}),
+                    previous_state,
+                    None, // TODO: Extract user_id from auth header
+                ) {
+                    eprintln!("Warning: Failed to emit Deleted event: {}", e);
+                }
+                
+                HttpResponse::Ok().json(ApiResultResponse {
                     success: true,
                     data: Some(json!({
                         "id": id,
-                        "object": object,
+                        "object": object_name,
                         "deleted": true
                     })),
                     error: None,
@@ -368,16 +474,7 @@ pub async fn delete(req: HttpRequest, path: web::Path<u32>) -> impl Responder {
         }
         Err(err) => { 
             eprintln!("Delete error: {}", err);
-            HttpResponse::InternalServerError().json(ApiResponse::<Value> {
-                success: false,
-                data: None,
-                error: Some(ApiError {
-                    code: "internal_error".to_string(),
-                    message: "An internal error occurred while deleting the record".to_string(),
-                    details: None,
-                }),
-                meta: None,
-            })
+            internal_error_response("An internal error occurred while deleting the record")
         }
     }
 } 
@@ -577,8 +674,8 @@ pub async fn list_migrations_route(
     }))
 }
 
-pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
-    // Register migration routes at the data scope level
+pub fn config(cfg: &mut web::ServiceConfig) {
+    // Register migration routes FIRST (must come before catch-all to take precedence)
     cfg.service(
         web::scope("/migrate")
             .route("/list", web::get().to(list_migrations_route))
@@ -589,52 +686,22 @@ pub fn config(cfg: &mut web::ServiceConfig, data: SystemData) {
             .route("/{migration_id}/", web::post().to(apply_migration_route))
     );
 
-    match data.public {
-        Some(vec) => {
-            // 'vec' is a Vec<SystemDataModel> here
-            if vec.is_empty() {
-                //println!("Vector is present but empty.");
-            } 
-            else {
-                //println!("Setup API for object: {:?}", vec);
-                for element in vec {
-                    let api_path = format!("/{}", element.name);
-                    cfg.service(
-                        web::scope(&api_path)
-                            .route("/list", web::get().to(list))
-                            .route("/{id}", web::get().to(get))
-                            .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
-                            .route("/{id}", web::put().to(put::<HashMap<String, serde_json::Value>>))
-                            .route("/{id}", web::delete().to(delete))
-
-                            .route("/list/", web::get().to(list))
-                            .route("/{id}/", web::get().to(get))
-                            .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
-                            .route("/{id}/", web::put().to(put::<HashMap<String, serde_json::Value>>))
-                            .route("/{id}/", web::delete().to(delete))
-                            //.route("/echo", web::post().to(echo))
-                    );
-                }
-            }
-        }
-        None => {
-            // println!("No vector present.");
-        }
-    } 
-    
-    /*
-    let apiPath = format!("/data/{}", data.db_name.clone());
-
+    // Dynamic catch-all routes for any schema
+    // Schema existence is validated at runtime in each handler
+    // Note: Both "" (no trailing slash) and "/" (trailing slash) routes are needed
     cfg.service(
-        web::scope(&apiPath)
+        web::scope("/{object_name}")
             .route("/list", web::get().to(list))
+            .route("/list/", web::get().to(list))
             .route("/{id}", web::get().to(get))
-            .route("/", web::post().to(post))
-            .route("/{id}", web::put().to(put))
+            .route("/{id}/", web::get().to(get))
+            .route("", web::post().to(post::<HashMap<String, serde_json::Value>>))
+            .route("/", web::post().to(post::<HashMap<String, serde_json::Value>>))
+            .route("/{id}", web::put().to(put::<HashMap<String, serde_json::Value>>))
+            .route("/{id}/", web::put().to(put::<HashMap<String, serde_json::Value>>))
             .route("/{id}", web::delete().to(delete))
-            //.route("/echo", web::post().to(echo))
+            .route("/{id}/", web::delete().to(delete))
     );
-    */
 }
 
 #[cfg(test)]

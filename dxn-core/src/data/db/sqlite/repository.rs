@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection, Result, Row};
+use uuid::Uuid;
 use crate::data::db::models::DbColumn;
 
 /// SQLite repository for database operations
@@ -144,6 +145,54 @@ pub fn create_dynamic_table(
     Ok(())
 }
 
+/// Drops (deletes) a table from the database.
+/// 
+/// WARNING: This permanently deletes all data in the table.
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name to drop
+/// 
+/// # Returns
+/// Ok(()) on success
+/// 
+/// # Errors
+/// Returns `rusqlite::Error` if the operation fails
+pub fn drop_table(db_name: String, table_name: String) -> Result<()> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
+    let sql = format!("DROP TABLE IF EXISTS {}", table_name);
+    conn.execute(&sql, [])?;
+    Ok(())
+}
+
+/// Counts all records in a table.
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// 
+/// # Returns
+/// Number of records in the table
+pub fn count_records(db_name: &str, table_name: &str) -> Result<u64> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
+    let sql = format!("SELECT COUNT(*) FROM {}", table_name);
+    conn.query_row(&sql, [], |row| row.get(0))
+}
+
+/// Deletes all records from a table (truncate).
+/// 
+/// # Arguments
+/// * `db_name` - Database name (without .db extension)
+/// * `table_name` - Table name
+/// 
+/// # Returns
+/// Number of deleted records
+pub fn delete_all_records(db_name: &str, table_name: &str) -> Result<usize> {
+    let conn = Connection::open(format!("{}.db", db_name))?;
+    let sql = format!("DELETE FROM {}", table_name);
+    conn.execute(&sql, [])
+}
+
 // ============================================================================
 // CRUD OPERATIONS
 // ============================================================================
@@ -167,10 +216,16 @@ pub fn create_dynamic_table(
 pub fn insert(
     db_name: String,
     table_name: String,
-    keys: Vec<String>,
-    values: Vec<serde_json::Value>,
+    mut keys: Vec<String>,
+    mut values: Vec<serde_json::Value>,
 ) -> Result<u64, rusqlite::Error> {
     let conn = Connection::open(format!("{}.db", db_name))?;
+
+    // Auto-generate UUID v7 if 'id' is not provided
+    if !keys.iter().any(|k| k.to_lowercase() == "id") {
+        keys.insert(0, "id".to_string());
+        values.insert(0, serde_json::Value::String(Uuid::now_v7().to_string()));
+    }
 
     // Convert serde_json::Value to rusqlite parameters
     let params_iter = serde_rusqlite::to_params(&values)
@@ -260,7 +315,7 @@ pub fn update(
 /// 
 /// # Security
 /// Uses parameterized queries to prevent SQL injection
-pub fn delete(db_name: String, table_name: String, id: u32) -> Result<usize, rusqlite::Error> {
+pub fn delete(db_name: String, table_name: String, id: String) -> Result<usize, rusqlite::Error> {
     let conn = Connection::open(format!("{}.db", db_name))?;
     let query = format!("DELETE FROM {} WHERE id = ?1", table_name);
 
@@ -284,7 +339,7 @@ pub fn delete(db_name: String, table_name: String, id: u32) -> Result<usize, rus
 /// 
 /// # Errors
 /// Returns `rusqlite::Error` if query fails or record not found
-pub fn get<F, T>(db_name: String, table_name: String, id: u32, mapper: F) -> Result<T>
+pub fn get<F, T>(db_name: String, table_name: String, id: String, mapper: F) -> Result<T>
 where
     F: FnMut(&Row) -> Result<T>,
     T: Sized,

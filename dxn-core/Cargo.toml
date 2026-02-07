@@ -6,8 +6,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 actix-web = "4.12.0"
+actix-multipart = "0.7"
 actix-server = "2.6.0"
 actix-cors = "0.7"
+futures-util = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 uuid = { version = "1.18.1", features = ["v7", "serde"] }
@@ -22,6 +24,7 @@ libloading = "0.8"
 reqwest = { version = "0.12", features = ["json"] }
 wasm-bindgen = "0.2"
 handlebars = "5.1"
+bytes = "1.11.1"
 
 [features]
 default = []
@@ -52,4 +55,7 @@ optional = true
 [dependencies.rusqlite]
 version = "0.37.0"
 features = ["bundled"]
+
+[dev-dependencies]
+tempfile = "3"
 

@@ -46,7 +46,7 @@ The core application is broken up into four core components
 Helper functions that enable JSON and YAML serialization
 
 1.2. Files
-Helper functions that enable you to easily read, write or modify files in a shared folder on your server
+Flexible file storage system with provider abstraction. See Section 7 for details.
 
 1.3. Server
 Manages the creation of a REST-based web application, with two core server components:
@@ -893,6 +893,113 @@ When a borrowed resource is accessed:
 - Audit logging
 - Rate limiting per scope
 - Dynamic scope requests
+
+---
+
+7. File Management
+
+DXN provides flexible file storage through a provider-based architecture.
+
+7.1. Configuration
+
+Define directories in `config.json`:
+
+```json
+"files": {
+    "directories": [
+        {
+            "name": "uploads",
+            "provider": "local",
+            "path": "/_files/uploads",
+            "icon": "📁"
+        }
+    ]
+}
+```
+
+Or create directories at runtime via the API.
+
+7.2. Providers
+
+- **local**: Stores files in `dxn-files/{path}` on the server filesystem
+- Future: SFTP, S3, and other cloud providers
+
+7.3. API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/files` | List all directories |
+| POST | `/api/files` | Create directory config |
+| GET | `/api/files/{name}/list/{path?}` | List files |
+| GET | `/api/files/{name}/read/{path}` | Read file |
+| POST | `/api/files/{name}/write/{path}` | Write file |
+| DELETE | `/api/files/{name}/delete/{path}` | Delete file |
+| POST | `/api/files/{name}/mkdir/{path}` | Create folder |
+
+---
+
+8. Event Sourcing
+
+All CRUD operations automatically emit events to an event store.
+
+8.1. Event Types
+
+- `created` - Entity was created
+- `updated` - Entity was updated (includes previous state)
+- `deleted` - Entity was deleted (includes previous state)
+
+8.2. API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/events` | List recent events |
+| GET | `/api/events/aggregate/{id}` | Events for an entity |
+| GET | `/api/events/schema/{name}` | Events for a schema |
+| POST | `/api/events/rebuild/{schema}` | Rebuild data from events |
+
+8.3. Rebuild Capability
+
+Rebuild a schema's data table from the event store:
+
+```
+POST /api/events/rebuild/orders
+```
+
+This clears the table and replays all events to reconstruct the data.
+
+---
+
+9. Schema Management
+
+Schemas can be defined in config or created at runtime.
+
+9.1. Schema Fields
+
+```json
+{
+    "name": "orders",
+    "version": 1,
+    "db": "public",
+    "public": true,
+    "icon": "📦",
+    "fields": [
+        {"name": "id", "datatype": "integer", "value": "", "primary": true},
+        {"name": "total", "datatype": "number", "value": "0"}
+    ]
+}
+```
+
+- `icon`: Optional emoji or icon identifier for UI display
+
+9.2. API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/schema` | List all schemas |
+| GET | `/api/schema/{name}` | Get schema details |
+| POST | `/api/schema` | Create schema |
+| PUT | `/api/schema/{name}` | Update schema |
+| DELETE | `/api/schema/{name}` | Delete schema |
 
 ---
 

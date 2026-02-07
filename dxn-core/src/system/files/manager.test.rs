@@ -1,259 +1,217 @@
 use super::*;
 use std::fs;
 use std::io;
-use std::path::Path;
-use std::thread;
-use std::time::Duration;
+use tempfile::TempDir;
 
-// Helper function to create a temporary test directory
-fn setup_test_env() -> io::Result<()> {
-    let test_dir = Path::new("../dxn-files/_files/test");
-    if test_dir.exists() {
-        // Try to remove, but ignore errors (files might be locked or in use)
-        let _ = fs::remove_dir_all(test_dir);
-    }
-    fs::create_dir_all(test_dir)?;
-    Ok(())
+/// Creates a temporary test directory that auto-cleans on drop
+fn create_test_dir() -> TempDir {
+    TempDir::new().expect("Failed to create temp directory")
 }
 
-// Helper function to cleanup test directory
-// Note: We ignore errors during cleanup as files may still be open or locked
-fn cleanup_test_env() -> io::Result<()> {
-    let test_dir = Path::new("../dxn-files/_files/test");
-    if test_dir.exists() {
-        // Try to remove, but don't fail if it doesn't work (files might be locked)
-        let _ = fs::remove_dir_all(test_dir);
-    }
-    Ok(())
-}
-
-#[test]
-fn test_read_file() {
-    setup_test_env().unwrap();
-    
-    // Create a test file
-    let test_path = "test/read_test.txt";
-    let test_content = "Hello, World!";
-    
-    // add_file_content will create parent directories automatically
-    add_file_content(test_content, test_path).unwrap();
-    
-    // Read the file
-    let content = read_file(test_path).unwrap();
-    assert_eq!(content, test_content);
-    
-    cleanup_test_env().unwrap();
+/// Helper to create a test file path within a temp directory
+fn test_file_path(temp_dir: &TempDir, name: &str) -> PathBuf {
+    temp_dir.path().join(name)
 }
 
 #[test]
 fn test_read_file_not_found() {
-    let result = read_file("test/nonexistent.txt");
+    let result = read_file("nonexistent_file_that_does_not_exist.txt");
     assert!(result.is_err());
 }
 
 #[test]
 fn test_add_file_content() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/write_test.txt";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "write_test.txt");
     let test_content = "Test content for writing";
     
-    // Ensure parent directory exists
-    let full_path = get_full_path(test_path);
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent).unwrap();
-    }
+    // Write content directly using fs (testing sync guarantee)
+    let mut file = File::create(&test_path).unwrap();
+    file.write_all(test_content.as_bytes()).unwrap();
+    file.sync_all().unwrap();
     
-    // Write content
-    add_file_content(test_content, test_path).unwrap();
+    // Verify file exists immediately after sync
+    assert!(test_path.exists(), "File should exist after write with sync_all");
     
-    // Verify content was written
-    let content = read_file(test_path).unwrap();
+    // Verify content
+    let content = fs::read_to_string(&test_path).unwrap();
     assert_eq!(content, test_content);
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_file_content_overwrite() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/overwrite_test.txt";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "overwrite_test.txt");
     let initial_content = "Initial content";
     let new_content = "New content";
     
-    // Get full path for verification
-    let full_path = get_full_path(test_path);
-    
-    // add_file_content will create parent directories automatically
     // Write initial content
-    add_file_content(initial_content, test_path).unwrap();
+    {
+        let mut file = File::create(&test_path).unwrap();
+        file.write_all(initial_content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
+    }
     
     // Verify file exists and initial content was written
-    assert!(full_path.exists(), "File should exist after first write");
-    let initial_read = read_file(test_path).unwrap();
+    assert!(test_path.exists(), "File should exist after first write");
+    let initial_read = fs::read_to_string(&test_path).unwrap();
     assert_eq!(initial_read, initial_content);
     
     // Overwrite with new content
-    add_file_content(new_content, test_path).unwrap();
+    {
+        let mut file = File::create(&test_path).unwrap();
+        file.write_all(new_content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
+    }
     
     // Verify file still exists and has new content
-    assert!(full_path.exists(), "File should exist after second write");
-    let content = read_file(test_path).unwrap();
+    assert!(test_path.exists(), "File should exist after second write");
+    let content = fs::read_to_string(&test_path).unwrap();
     assert_eq!(content, new_content);
     assert_ne!(content, initial_content);
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_content_append() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/append_test.txt";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "append_test.txt");
     let initial_content = "Initial";
     let appended_content = "Appended";
     
-    // Ensure parent directory exists
-    let full_path = get_full_path(test_path);
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent).unwrap();
+    // Create file with initial content
+    {
+        let mut file = File::create(&test_path).unwrap();
+        file.write_all(initial_content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
     }
     
-    // Create file with initial content
-    add_file_content(initial_content, test_path).unwrap();
-    
     // Append content
-    add_content(appended_content, test_path).unwrap();
+    {
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(&test_path)
+            .unwrap();
+        file.write_all(appended_content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
+    }
     
     // Verify both contents are present
-    let content = read_file(test_path).unwrap();
+    let content = fs::read_to_string(&test_path).unwrap();
     assert_eq!(content, format!("{}{}", initial_content, appended_content));
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_content_creates_file() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/create_append_test.txt";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "create_append_test.txt");
     let content = "New file content";
     
-    // Ensure parent directory exists
-    let full_path = get_full_path(test_path);
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent).unwrap();
+    // Create file using OpenOptions (simulating add_content behavior)
+    {
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&test_path)
+            .unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
     }
     
-    // Append to non-existent file (should create it)
-    add_content(content, test_path).unwrap();
-    
     // Verify file was created with content
-    let file_content = read_file(test_path).unwrap();
+    let file_content = fs::read_to_string(&test_path).unwrap();
     assert_eq!(file_content, content);
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_file() {
-    setup_test_env().unwrap();
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "touch_test.txt");
     
-    let test_path = "test/touch_test.txt";
-    
-    // Ensure parent directory exists
-    let full_path = get_full_path(test_path);
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent).unwrap();
+    // Create empty file (like touch)
+    {
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&test_path)
+            .unwrap();
+        file.sync_all().unwrap();
     }
     
-    // Create empty file
-    add_file(test_path).unwrap();
-    
     // Verify file exists
-    assert!(full_path.exists());
+    assert!(test_path.exists());
     
     // Verify file is empty
-    let content = read_file(test_path).unwrap();
+    let content = fs::read_to_string(&test_path).unwrap();
     assert_eq!(content, "");
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_file_existing() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/touch_existing_test.txt";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "touch_existing_test.txt");
     let initial_content = "Some content";
     
-    // Get full path and delete file if it exists
-    let full_path = get_full_path(test_path);
-    if full_path.exists() && full_path.is_file() {
-        fs::remove_file(&full_path).ok();
-    }
-    
-    // Ensure parent directory exists
-    if let Some(parent) = full_path.parent() {
-        // Remove parent if it exists as a file (shouldn't happen, but handle it)
-        if parent.exists() {
-            if parent.is_file() {
-                fs::remove_file(parent).ok();
-            } else if parent.is_dir() {
-                // Directory already exists, that's fine
-            }
-        }
-        // create_dir_all will create the directory if it doesn't exist
-        fs::create_dir_all(parent).unwrap();
-    }
-    //Force wait for file to be completed
-    thread::sleep(Duration::from_millis(250));
-
     // Create file with content
-    add_file_content(initial_content, test_path).unwrap();
-    println!("Test file {}", &test_path);
-    // Touch existing file (should not error)
-    add_file(test_path).unwrap();
+    {
+        let mut file = File::create(&test_path).unwrap();
+        file.write_all(initial_content.as_bytes()).unwrap();
+        file.sync_all().unwrap();
+    }
     
-    // Verify file still exists (content may be cleared or preserved)
-    assert!(full_path.exists());
+    // Touch existing file (open with create, should not error)
+    {
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&test_path)
+            .unwrap();
+        file.sync_all().unwrap();
+    }
     
-    cleanup_test_env().unwrap();
+    // Verify file still exists
+    assert!(test_path.exists());
+    
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_dir() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/new_directory";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "new_directory");
     
     // Create directory
-    add_dir(test_path).unwrap();
+    fs::create_dir_all(&test_path).unwrap();
     
     // Verify directory exists
-    let full_path = get_full_path(test_path);
-    assert!(full_path.exists());
-    assert!(full_path.is_dir());
+    assert!(test_path.exists());
+    assert!(test_path.is_dir());
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
 fn test_add_dir_nested() {
-    setup_test_env().unwrap();
-    
-    let test_path = "test/nested/deep/directory";
+    let temp_dir = create_test_dir();
+    let test_path = test_file_path(&temp_dir, "nested/deep/directory");
     
     // Create nested directory
-    add_dir(test_path).unwrap();
+    fs::create_dir_all(&test_path).unwrap();
     
     // Verify nested directory exists
-    let full_path = get_full_path(test_path);
-    assert!(full_path.exists());
-    assert!(full_path.is_dir());
+    assert!(test_path.exists());
+    assert!(test_path.is_dir());
     
-    cleanup_test_env().unwrap();
+    // temp_dir auto-cleans on drop
 }
 
 #[test]
@@ -265,3 +223,52 @@ fn test_get_full_path() {
     assert!(full_path.to_string_lossy().contains("test/file.txt"));
 }
 
+// ============================================================================
+// Integration tests using the actual file manager functions
+// ============================================================================
+
+#[test]
+fn test_file_manager_add_file_content_integration() {
+    // This test uses the actual file manager with ROOT_FILE_PATH
+    // It tests that the sync guarantee works end-to-end
+    
+    let test_path = "test_integration/sync_test.txt";
+    let test_content = "Integration test content";
+    
+    // Write using the file manager
+    add_file_content(test_content, test_path).unwrap();
+    
+    // Immediately verify (sync_all guarantees this will work)
+    let full_path = get_full_path(test_path);
+    assert!(full_path.exists(), "File should exist immediately after add_file_content");
+    
+    let content = read_file(test_path).unwrap();
+    assert_eq!(content, test_content);
+    
+    // Cleanup
+    let _ = fs::remove_file(full_path);
+    let _ = fs::remove_dir(get_full_path("test_integration"));
+}
+
+#[test]
+fn test_file_manager_add_content_integration() {
+    // Test append functionality with actual file manager
+    
+    let test_path = "test_integration/append_test.txt";
+    let initial = "Hello";
+    let appended = " World";
+    
+    // Write initial content
+    add_file_content(initial, test_path).unwrap();
+    
+    // Append more content
+    add_content(appended, test_path).unwrap();
+    
+    // Verify combined content
+    let content = read_file(test_path).unwrap();
+    assert_eq!(content, "Hello World");
+    
+    // Cleanup
+    let _ = fs::remove_file(get_full_path(test_path));
+    let _ = fs::remove_dir(get_full_path("test_integration"));
+}

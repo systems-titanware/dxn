@@ -188,5 +188,21 @@
                 ]
             }
         ]
+    },
+    "files": {
+        "directories": [
+            {
+                "name": "blogs",
+                "provider": "local",
+                "path": "/_files/blogs",
+                "icon": "📝"
+            },
+            {
+                "name": "uploads",
+                "provider": "local",
+                "path": "/_files/uploads",
+                "icon": "📁"
+            }
+        ]
     }
 }
