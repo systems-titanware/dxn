@@ -1,2 +1,0 @@
-[2026-01-13 04:55:14.348110 UTC] OK: App initialized
-[2026-01-13 04:55:19.479217 UTC] OK: cargo run success: integrations/parser
