@@ -27,3 +27,4 @@ dxn-core/*.db.backup
 dxn-core/Cargo.lock
 examples/**/*
 dxn-files/**/*
+*.db
