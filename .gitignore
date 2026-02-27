@@ -25,3 +25,5 @@ dxn_public/_files/**/*
 dxn_public/integrations/*/Cargo.lock
 dxn-core/*.db.backup
 dxn-core/Cargo.lock
+dxn-files/**/*
+examples/**/*
