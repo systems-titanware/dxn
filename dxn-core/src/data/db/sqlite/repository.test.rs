@@ -221,7 +221,7 @@ mod tests {
         migrations::init_migrations_table(&conn).unwrap();
 
         // Apply migration
-        let result = migrations::apply_migration(db_name, &migration, true);
+        let result = migrations::apply_migration(".", db_name, &migration, true);
         assert!(result.is_ok(), "Migration should succeed");
         
         match result.unwrap() {
@@ -269,7 +269,7 @@ mod tests {
         let migration = create_v2_migration();
         let conn = Connection::open(format!("{}.db", db_name)).unwrap();
         migrations::init_migrations_table(&conn).unwrap();
-        migrations::apply_migration(db_name, &migration, true).unwrap();
+        migrations::apply_migration(".", db_name, &migration, true).unwrap();
 
         // Step 3: Verify original data still exists
         let mapper = |row: &rusqlite::Row| {
@@ -413,11 +413,11 @@ mod tests {
 
         // Apply first migration
         let migration1 = create_v2_migration();
-        migrations::apply_migration(db_name, &migration1, true).unwrap();
+        migrations::apply_migration(".", db_name, &migration1, true).unwrap();
 
         // Apply second migration
         let migration2 = create_v3_migration();
-        migrations::apply_migration(db_name, &migration2, true).unwrap();
+        migrations::apply_migration(".", db_name, &migration2, true).unwrap();
 
         // Verify all columns exist
         let mut stmt = conn.prepare("PRAGMA table_info(test_model)").unwrap();
@@ -578,7 +578,7 @@ mod tests {
         migrations::init_migrations_table(&conn).unwrap();
 
         // Apply migration
-        migrations::apply_migration(db_name, &migration, true).unwrap();
+        migrations::apply_migration(".", db_name, &migration, true).unwrap();
 
         // Verify column exists
         let mut stmt = conn.prepare("PRAGMA table_info(test_model)").unwrap();
@@ -589,8 +589,8 @@ mod tests {
             .unwrap();
         assert!(columns.contains(&"age".to_string()));
 
-        // Rollback migration
-        migrations::rollback_migration(db_name, &migration, true).unwrap();
+        // Rollback migration (use "." as project_root in test)
+        migrations::rollback_migration(".", db_name, &migration, true).unwrap();
 
         // Verify column is gone
         let mut stmt = conn.prepare("PRAGMA table_info(test_model)").unwrap();
@@ -631,7 +631,7 @@ mod tests {
         migrations::init_migrations_table(&conn).unwrap();
 
         // Try to apply without force - should require approval
-        let result = migrations::apply_migration(db_name, &destructive_migration, false);
+        let result = migrations::apply_migration(".", db_name, &destructive_migration, false);
         assert!(result.is_ok());
         
         match result.unwrap() {
@@ -642,7 +642,7 @@ mod tests {
         }
 
         // Apply with force - should succeed
-        let result = migrations::apply_migration(db_name, &destructive_migration, true);
+        let result = migrations::apply_migration(".", db_name, &destructive_migration, true);
         assert!(result.is_ok());
 
         println!("   ✓ Test passed: test_migration_approval_required\n");

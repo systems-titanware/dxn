@@ -111,6 +111,12 @@ impl LocalFileProvider {
         Self::new(DEFAULT_BASE_PATH)
     }
     
+    /// Resolve a path relative to the provider base with path traversal protection.
+    /// Use this when you need the absolute path without reading (e.g. for passing to other APIs).
+    pub fn resolve_path(&self, relative_path: &str) -> Result<PathBuf, ProviderError> {
+        self.get_full_path(relative_path)
+    }
+
     /// Get the full path for a relative path, with path traversal protection
     /// 
     /// # Arguments

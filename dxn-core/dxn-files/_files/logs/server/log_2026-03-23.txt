@@ -1,0 +1,68 @@
+[2026-03-23 07:25:11.677260 UTC] ERR: Failed to load route file.
+relative path: server/subpage.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/subpage.html
+[2026-03-23 07:25:12.404207 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/home.html
+[2026-03-23 07:25:13.011358 UTC] ERR: Failed to load route file.
+relative path: server/tester.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/tester.html
+[2026-03-23 07:25:38.581850 UTC] ERR: Failed to load route file.
+relative path: server/subpage.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/subpage.html
+[2026-03-23 07:27:52.013752 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/home.html
+[2026-03-23 07:27:52.547084 UTC] ERR: Failed to load route file.
+relative path: server/tester.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/tester.html
+[2026-03-23 07:29:05.400420 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/home.html
+[2026-03-23 07:29:05.876428 UTC] ERR: Failed to load route file.
+relative path: server/subpage.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/subpage.html
+[2026-03-23 07:29:06.415524 UTC] ERR: Failed to load route file.
+relative path: server/tester.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/tester.html
+[2026-03-23 07:33:49.707847 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/home.html
+[2026-03-23 07:52:23.771303 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/home.html
+[2026-03-23 07:53:08.117899 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+error: Not found: server/home.html
+[2026-03-23 08:06:49.193471 UTC] ERR: Failed to load route file.
+relative path: server/subpage.html
+project_root: /Users/home/Projects/dxn/dxn-core
+dxn_files_root: /Users/home/Projects/dxn/dxn-core/dxn-files
+error: Not found: server/subpage.html
+[2026-03-23 08:06:50.190023 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+dxn_files_root: /Users/home/Projects/dxn/dxn-core/dxn-files
+error: Not found: server/home.html
+[2026-03-23 08:06:51.103798 UTC] ERR: Failed to load route file.
+relative path: server/subpage.html
+project_root: /Users/home/Projects/dxn/dxn-core
+dxn_files_root: /Users/home/Projects/dxn/dxn-core/dxn-files
+error: Not found: server/subpage.html
+[2026-03-23 08:14:49.853440 UTC] ERR: Failed to load route file.
+relative path: server/home.html
+project_root: /Users/home/Projects/dxn/dxn-core
+dxn_files_root: /Users/home/Projects/dxn/dxn-core/dxn-files
+error: Not found: server/home.html

@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::sync::{LazyLock, Mutex};
 use crate::functions::models::{SystemFunctionModel, FunctionType, FunctionError};
 use crate::functions::executors::*;
+use crate::system::files::dxn_files;
 
 // Store all registered functions
 static mut PUBLIC_FUNCTIONS: Mutex<Vec<SystemFunctionModel>> = Mutex::new(Vec::new());
@@ -38,26 +39,39 @@ pub fn get_function(name: &str) -> Option<SystemFunctionModel> {
     }
 }
 
-/// Unified function call API - routes to appropriate executor based on function type
+/// Resolve a path from config under project_root/dxn-files when project_root is set.
+fn resolve_path(project_root: Option<&str>, config_path: Option<&String>) -> Option<String> {
+    let root = project_root?;
+    let path = config_path?;
+    dxn_files::resolve_under_dxn_files(root, path)
+        .ok()
+        .map(|pb| pb.to_string_lossy().into_owned())
+}
+
+/// Unified function call API - routes to appropriate executor based on function type.
+/// When project_root is Some, path/script_path/library_path are resolved under project_root/dxn-files.
 pub async fn call_function(
     name: &str,
-    params: &[serde_json::Value]
+    params: &[serde_json::Value],
+    project_root: Option<&str>,
 ) -> Result<serde_json::Value, FunctionError> {
     let function = get_function(name)
         .ok_or_else(|| FunctionError::NotFound(name.to_string()))?;
-    
+
+    let path_override = resolve_path(project_root, function.path.as_ref());
+    let script_path_override = resolve_path(project_root, function.script_path.as_ref());
+    let library_path_override = resolve_path(project_root, function.library_path.as_ref());
+
     match function.function_type {
         FunctionType::Wasm => {
-            execute_wasm(&function, params).await
-        },
+            execute_wasm(&function, params, path_override.as_deref()).await
+        }
         FunctionType::Native => {
-            execute_native(&function, params).await
-        },
-        FunctionType::Remote => {
-            execute_remote(&function, params).await
-        },
+            execute_native(&function, params, library_path_override.as_deref()).await
+        }
+        FunctionType::Remote => execute_remote(&function, params).await,
         FunctionType::Script => {
-            execute_script(&function, params).await
+            execute_script(&function, params, script_path_override.as_deref()).await
         }
     }
 }

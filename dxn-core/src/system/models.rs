@@ -7,6 +7,7 @@ use crate::data::models::{SystemData, SystemFiles};
 use crate::functions::models::{SystemFunctions};
 use crate::system::server::models::{SystemServer};
 use crate::integrations::models::{SystemIntegrations, ServiceMeshConfig};
+use crate::system::auth::sa_identity::SaIdentity;
 use std::fmt;
 use std::error::Error;
 
@@ -20,6 +21,10 @@ pub struct AppState {
     pub(crate) uuid: Uuid,
     /// Root directory for local file operations; paths outside this are rejected.
     pub(crate) project_root: String,
+    /// Absolute path to `project_root/dxn-files`, resolved once at startup.
+    pub(crate) dxn_files_root: String,
+    /// SA identity from .sa-identity.json when present; used for auth and Bearer verification.
+    pub(crate) sa_identity: Option<SaIdentity>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

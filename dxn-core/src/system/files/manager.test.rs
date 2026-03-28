@@ -219,7 +219,8 @@ fn test_get_full_path() {
     let path = "test/file.txt";
     let full_path = get_full_path(path);
     
-    assert!(full_path.to_string_lossy().contains(ROOT_FILE_PATH));
+    assert!(full_path.to_string_lossy().contains("dxn-files"));
+    assert!(full_path.to_string_lossy().contains("_files"));
     assert!(full_path.to_string_lossy().contains("test/file.txt"));
 }
 

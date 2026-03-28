@@ -7,8 +7,34 @@ fn cleanup_test_db() {
     let _ = std::fs::remove_file(format!("{}.db", REGISTRY_DB));
 }
 
+/// Ensures test-created schema rows are removed even if a test panics.
+struct SchemaCleanupGuard {
+    names: Vec<String>,
+}
+
+impl SchemaCleanupGuard {
+    fn new() -> Self {
+        Self { names: Vec::new() }
+    }
+
+    fn track(&mut self, name: &str) {
+        self.names.push(name.to_string());
+    }
+}
+
+impl Drop for SchemaCleanupGuard {
+    fn drop(&mut self) {
+        for name in &self.names {
+            let _ = hard_delete_schema(name);
+        }
+    }
+}
+
 #[test]
 fn test_init_and_insert_schema() {
+    let mut cleanup = SchemaCleanupGuard::new();
+    cleanup.track("test_schema");
+
     // Initialize table (idempotent - uses CREATE TABLE IF NOT EXISTS)
     init_schema_table().expect("Failed to init schema table");
     
@@ -58,11 +84,13 @@ fn test_init_and_insert_schema() {
     assert_eq!(retrieved.source, Some("runtime".to_string()));
     assert_eq!(retrieved.status, SchemaStatus::Active);
     
-    // Note: cleanup at end removed to avoid race conditions with parallel tests
 }
 
 #[test]
 fn test_upsert_config_schema() {
+    let mut cleanup = SchemaCleanupGuard::new();
+    cleanup.track("config_schema");
+
     // Initialize table (idempotent - uses CREATE TABLE IF NOT EXISTS)
     init_schema_table().expect("Failed to init schema table");
     
@@ -104,11 +132,13 @@ fn test_upsert_config_schema() {
     assert_eq!(retrieved.version, 2);
     assert!(retrieved.public);
     
-    // Note: cleanup at end removed to avoid race conditions with parallel tests
 }
 
 #[test]
 fn test_soft_delete_and_restore() {
+    let mut cleanup = SchemaCleanupGuard::new();
+    cleanup.track("soft_delete_test");
+
     // Initialize table
     init_schema_table().expect("Failed to init schema table");
     

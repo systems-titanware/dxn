@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse, Responder, HttpRequest};
 use crate::functions::models::SystemFunctions;
 use crate::functions::manager;
+use crate::system::models::AppState;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -15,6 +16,7 @@ use std::collections::HashMap;
 /// 
 /// Returns: Function result as JSON
 pub async fn execute_function(
+    app: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
     payload: web::Json<HashMap<String, serde_json::Value>>,
@@ -22,17 +24,15 @@ pub async fn execute_function(
     // Extract function name from path parameter
     let function_name = path.into_inner();
     println!("[DEBUG] execute_function called with function_name: '{}'", function_name);
-    
+
     // Convert request body (HashMap) to parameters array
-    // The function manager expects Vec<serde_json::Value>
-    // We'll convert the HashMap values to an array
     let body_map = payload.into_inner();
     let params: Vec<serde_json::Value> = body_map.into_values().collect();
-    
+
     println!("[DEBUG] Calling function '{}' with {} parameters", function_name, params.len());
-    
-    // Call the function via manager
-    match manager::call_function(&function_name, &params).await {
+
+    // Call the function via manager (resolve paths under project_root/dxn-files)
+    match manager::call_function(&function_name, &params, Some(&app.project_root)).await {
         Ok(result) => {
             // Check if result contains an error field
             if let Some(error) = result.get("error") {

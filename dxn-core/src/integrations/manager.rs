@@ -1,4 +1,5 @@
 use crate::integrations::models::{SystemIntegrationModel, IntegrationError};
+use std::sync::OnceLock;
 
 // tcp_client_app/src/main.rs
 //use dxn_shared::{RequestMessage, ResponseMessage};
@@ -6,15 +7,21 @@ use tokio::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use serde_json;
 
-/// Load json of list of cun
-/* all compiled and run integrations inherit a trait
-Get
-- Gets the instance of the integration running
-Run
-- Runs a function passing in an enum of Function Names of itself and on that function running, performing that function
-Init
-- Runs an init function based on the json config loaded in */
-use crate::integrations::constants::SHARED_FILES_PATH;
+/// Directory under project root for dxn files (must match system::files::dxn_files::DXN_FILES_DIR).
+const DXN_FILES_DIR: &str = "dxn-files";
+
+/// Project root set at startup; used to resolve integration paths as project_root/dxn-files/{path}.
+static PROJECT_ROOT: OnceLock<String> = OnceLock::new();
+
+/// Set the project root (called from main at startup). All integration paths are under project_root/dxn-files/.
+pub fn set_project_root(root: &str) {
+    let _ = PROJECT_ROOT.set(root.trim_end_matches('/').to_string());
+}
+
+fn integration_path(relative_path: &str) -> String {
+    let root = PROJECT_ROOT.get().map(String::as_str).unwrap_or(".");
+    format!("{}/{}/{}", root, DXN_FILES_DIR, relative_path.trim_start_matches('/'))
+}
 
 static mut PUBLIC_INTEGRATIONS: Vec<SystemIntegrationModel> = Vec::new();
 
@@ -42,9 +49,7 @@ pub fn run(integration_name: &str, command: &str, args: Option<&str>) -> Result<
         
         match matched_integration {
             Some(integration) => {
-                // Get path of integration
-                let path: String = format!("{}/{}", SHARED_FILES_PATH, integration.path);
-                
+                let path = integration_path(&integration.path);
                 // Run integration
                 let output = crate::integrations::compiler::run(&path, command, args);
 
@@ -113,7 +118,7 @@ pub async fn run_tcp(integration_name: &str, command: &str, args: Option<&str>) 
 }
 */
 pub fn init(integration: SystemIntegrationModel) {
-    let path: String = format!("{}/{}", SHARED_FILES_PATH, &integration.path);
+    let path = integration_path(&integration.path);
     // Create list of integration run-times
     // Threads that operations can execute on
     let output = crate::integrations::compiler::compile(&path);

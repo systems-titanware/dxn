@@ -27,6 +27,15 @@ DXN is a Rust-based web server framework that provides:
 - LLVM (`brew install llvm` on macOS)
 - PostgreSQL 18 (optional, for future database support)
 
+### First-time provisioning (dxn-setup)
+
+New server deployments should be **provisioned** before running `dxn-core`. The CLI tool **[dxn-setup](https://github.com/systems-titanware/dxn-setup)** validates your tree, writes `dxn-core/config.json` patches, stages keystore seeds, and creates `dxn-core/.dxn-setup-lock.json` and `.sa-identity.json`.
+
+- **Repository:** [systems-titanware/dxn-setup](https://github.com/systems-titanware/dxn-setup) — build with `cargo build --release`; run the `dxn-setup` binary from `target/release/`.
+- **Operator guide:** [docs/dxn-setup-handoff.md](./docs/dxn-setup-handoff.md) — first run, non-interactive env vars (`DXN_SETUP_USERNAME`, `DXN_SETUP_SECRET`), exit codes (`0`, `10` already provisioned, `11`–`15` errors), and produced artifacts.
+
+`dxn-core` expects `config.json` and `.dxn-setup-lock.json` under `dxn-core/`; without them it exits with a clear message to run setup first.
+
 ### Installation
 
 1. Clone the repository:
@@ -48,14 +57,17 @@ DXN is a Rust-based web server framework that provides:
    cd ../dxn-core
    ```
 
-4. Configure your server by editing `config.json` in the root directory (see [Framework.md](./Framework.md) for details)
+4. Configure your server: for a **new** deployment, run **[dxn-setup](https://github.com/systems-titanware/dxn-setup)** (see [docs/dxn-setup-handoff.md](./docs/dxn-setup-handoff.md)). For **local development**, you may edit `dxn-core/config.json` if you already have a valid lock and templates (see [Framework.md](./Framework.md) for schema details).
 
-5. Run the server:
+5. Run the server (from `dxn-core`, or from repo root with manifest path):
    ```bash
    cargo run
    ```
+   ```bash
+   cargo run --manifest-path "./dxn-core/Cargo.toml"
+   ```
 
-**Note:** Cloud registration and mobile client workflow are planned features. Currently, servers are set up manually via configuration files.
+**Note:** Cloud registration and mobile client workflow are planned features. New deployments use **dxn-setup** plus config; see [docs/dxn-setup-handoff.md](./docs/dxn-setup-handoff.md).
 
 
 ## Ongoing runtime steps
@@ -239,6 +251,7 @@ See [Framework.md](./Framework.md) for detailed configuration examples and techn
 
 ## Documentation
 
+- **[docs/dxn-setup-handoff.md](./docs/dxn-setup-handoff.md)**: First-time provisioning with [dxn-setup](https://github.com/systems-titanware/dxn-setup) — env vars, exit codes, artifacts.
 - **[Framework.md](./Framework.md)**: Comprehensive technical documentation covering:
   - System architecture
   - Data models and database setup

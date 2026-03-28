@@ -7,6 +7,30 @@ fn unique_name(prefix: &str) -> String {
     format!("{}-{}", prefix, Uuid::now_v7())
 }
 
+/// Ensures test-created directory rows are deleted even if a test panics.
+struct CleanupGuard {
+    names: Vec<String>,
+}
+
+impl CleanupGuard {
+    fn new() -> Self {
+        Self { names: Vec::new() }
+    }
+
+    fn track(&mut self, name: String) -> String {
+        self.names.push(name.clone());
+        name
+    }
+}
+
+impl Drop for CleanupGuard {
+    fn drop(&mut self) {
+        for name in &self.names {
+            let _ = delete_directory(name);
+        }
+    }
+}
+
 #[test]
 fn test_init_files_table() {
     let result = init_files_table();
@@ -20,8 +44,9 @@ fn test_init_files_table() {
 #[test]
 fn test_insert_and_get_directory() {
     init_files_table().unwrap();
+    let mut cleanup = CleanupGuard::new();
     
-    let name = unique_name("test-dir");
+    let name = cleanup.track(unique_name("test-dir"));
     let directory = SystemFileDirectory {
         name: name.clone(),
         provider: "local".to_string(),
@@ -47,8 +72,9 @@ fn test_insert_and_get_directory() {
 #[test]
 fn test_directory_exists() {
     init_files_table().unwrap();
+    let mut cleanup = CleanupGuard::new();
     
-    let name = unique_name("exists-test");
+    let name = cleanup.track(unique_name("exists-test"));
     
     // Should not exist initially
     assert!(!directory_exists(&name).unwrap());
@@ -71,8 +97,9 @@ fn test_directory_exists() {
 #[test]
 fn test_update_directory() {
     init_files_table().unwrap();
+    let mut cleanup = CleanupGuard::new();
     
-    let name = unique_name("update-test");
+    let name = cleanup.track(unique_name("update-test"));
     let directory = SystemFileDirectory {
         name: name.clone(),
         provider: "local".to_string(),
@@ -128,9 +155,10 @@ fn test_delete_directory() {
 #[test]
 fn test_get_all_directories() {
     init_files_table().unwrap();
+    let mut cleanup = CleanupGuard::new();
     
-    let name1 = unique_name("all-test-1");
-    let name2 = unique_name("all-test-2");
+    let name1 = cleanup.track(unique_name("all-test-1"));
+    let name2 = cleanup.track(unique_name("all-test-2"));
     
     let dir1 = SystemFileDirectory {
         name: name1.clone(),
@@ -164,8 +192,9 @@ fn test_get_all_directories() {
 #[test]
 fn test_upsert_directory_config_source() {
     init_files_table().unwrap();
+    let mut cleanup = CleanupGuard::new();
     
-    let name = unique_name("upsert-config");
+    let name = cleanup.track(unique_name("upsert-config"));
     let directory = SystemFileDirectory {
         name: name.clone(),
         provider: "local".to_string(),
@@ -202,10 +231,11 @@ fn test_upsert_directory_config_source() {
 #[test]
 fn test_count_directories() {
     init_files_table().unwrap();
+    let mut cleanup = CleanupGuard::new();
     
     let initial_count = count_directories().unwrap();
     
-    let name = unique_name("count-test");
+    let name = cleanup.track(unique_name("count-test"));
     let directory = SystemFileDirectory {
         name: name.clone(),
         provider: "local".to_string(),

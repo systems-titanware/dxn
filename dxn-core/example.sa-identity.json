@@ -1,0 +1,14 @@
+{
+  "id": "11111111-2222-3333-4444-555555555555",
+  "username": "admin@example.com",
+  "password_hash": "3fK5cqgrVirbnUpK8hsHE3NXt4gtByDIB6qqNS2ybkE=",
+  "password_salt": "0GIzglCTL0+qB2aqCatO0A==",
+  "created_at": "2026-02-28T00:00:00Z",
+  "kdf_params": {
+    "memory_kib": 65536,
+    "iterations": 3,
+    "parallelism": 4
+  },
+  "jwt_signing_key": "v7oHR7Yp2R2qqW73kS9FJ1tch5nAXC5XqF3V0oJgV+Q="
+}
+

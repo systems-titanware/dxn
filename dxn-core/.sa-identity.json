@@ -1,0 +1,13 @@
+{
+  "id": "035444aa-4c6b-423a-902a-d0ef2eae9569",
+  "username": "admin",
+  "password_hash": "zNg5WPSEpdCPIVARC2XoYt7sWzohkS4GGneFbKwlrQI=",
+  "password_salt": "RuFkAEkz02qKiA5xgDnMqw==",
+  "created_at": "2026-03-28T19:42:27Z",
+  "kdf_params": {
+    "memory_kib": 65536,
+    "iterations": 3,
+    "parallelism": 4
+  },
+  "jwt_signing_key": "f1GILDEgf91NHRisspvo2mDnjbSW0X/ByfkzRYdY+5c="
+}

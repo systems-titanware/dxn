@@ -73,25 +73,33 @@ const MIGRATIONS_TABLE: &str = "__dxn_migrations";
 // MIGRATION FILE MANAGEMENT
 // ============================================================================
 
-/// Gets the full path to the migrations directory
-fn get_migrations_path() -> PathBuf {
-    PathBuf::from("../dxn-files").join(MIGRATIONS_DIR)
+/// Directory name under project root for dxn-files (must match system::files::dxn_files).
+const DXN_FILES_DIR: &str = "dxn-files";
+
+/// Gets the full path to the migrations directory under project_root/dxn-files.
+fn get_migrations_path(project_root: &str) -> PathBuf {
+    PathBuf::from(project_root.trim_end_matches('/'))
+        .join(DXN_FILES_DIR)
+        .join(MIGRATIONS_DIR)
 }
 
-/// Gets the full path to the database backup directory
-fn get_db_backup_path() -> PathBuf {
-    PathBuf::from("../dxn-files").join(DB_BACKUP_DIR)
+/// Gets the full path to the database backup directory under project_root/dxn-files.
+fn get_db_backup_path(project_root: &str) -> PathBuf {
+    PathBuf::from(project_root.trim_end_matches('/'))
+        .join(DXN_FILES_DIR)
+        .join(DB_BACKUP_DIR)
 }
 
 /// Saves a migration to a file in the migrations directory
-/// 
+///
 /// # Arguments
+/// * `project_root` - Server project root (dxn-files is under this)
 /// * `migration` - Migration to save
-/// 
+///
 /// # Returns
 /// `Result<PathBuf>` with the path to the saved migration file
-pub fn save_migration(migration: &Migration) -> io::Result<PathBuf> {
-    let migrations_dir = get_migrations_path();
+pub fn save_migration(project_root: &str, migration: &Migration) -> io::Result<PathBuf> {
+    let migrations_dir = get_migrations_path(project_root);
     
     // Create migrations directory if it doesn't exist
     fs::create_dir_all(&migrations_dir)?;
@@ -110,11 +118,14 @@ pub fn save_migration(migration: &Migration) -> io::Result<PathBuf> {
 }
 
 /// Loads all migration files from the migrations directory
-/// 
+///
+/// # Arguments
+/// * `project_root` - Server project root (dxn-files is under this)
+///
 /// # Returns
 /// Vector of migrations sorted by ID
-pub fn load_migrations() -> io::Result<Vec<Migration>> {
-    let migrations_dir = get_migrations_path();
+pub fn load_migrations(project_root: &str) -> io::Result<Vec<Migration>> {
+    let migrations_dir = get_migrations_path(project_root);
 
     if !migrations_dir.exists() {
         return Ok(Vec::new());
@@ -146,19 +157,20 @@ pub fn load_migrations() -> io::Result<Vec<Migration>> {
 // ============================================================================
 
 /// Creates a backup of the database before migration
-/// 
+///
 /// # Arguments
+/// * `project_root` - Server project root (dxn-files is under this)
 /// * `db_name` - Database name (without .db extension)
-/// 
+///
 /// # Returns
 /// Path to the backup file
-pub fn backup_database(db_name: &str) -> io::Result<PathBuf> {
+pub fn backup_database(project_root: &str, db_name: &str) -> io::Result<PathBuf> {
     let source = format!("{}.db", db_name);
     let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
     let backup_name = format!("{}_{}.db.backup", db_name, timestamp);
-    
+
     // Get backup directory and ensure it exists
-    let backup_dir = get_db_backup_path();
+    let backup_dir = get_db_backup_path(project_root);
     fs::create_dir_all(&backup_dir)?;
     
     // Create full backup path
@@ -305,15 +317,17 @@ pub fn requires_approval(migration: &Migration) -> Option<String> {
 // ============================================================================
 
 /// Applies a single migration to the database
-/// 
+///
 /// # Arguments
+/// * `project_root` - Server project root (dxn-files is under this)
 /// * `db_name` - Database name (without .db extension)
 /// * `migration` - Migration to apply
 /// * `force` - If true, skip approval check (use with caution!)
-/// 
+///
 /// # Returns
 /// `MigrationResult` indicating success or requiring approval
 pub fn apply_migration(
+    project_root: &str,
     db_name: &str,
     migration: &Migration,
     force: bool,
@@ -326,7 +340,7 @@ pub fn apply_migration(
     }
 
     // Create backup before applying
-    backup_database(db_name)
+    backup_database(project_root, db_name)
         .map_err(|e| rusqlite::Error::SqliteFailure(
             ffi::Error::new(ffi::SQLITE_IOERR),
             Some(format!("Failed to backup database: {}", e))
@@ -366,15 +380,17 @@ pub fn apply_migration(
 }
 
 /// Rolls back a single migration
-/// 
+///
 /// # Arguments
+/// * `project_root` - Server project root (dxn-files is under this)
 /// * `db_name` - Database name (without .db extension)
 /// * `migration` - Migration to rollback
 /// * `force` - If true, skip approval check
-/// 
+///
 /// # Returns
 /// `MigrationResult` indicating success or requiring approval
 pub fn rollback_migration(
+    project_root: &str,
     db_name: &str,
     migration: &Migration,
     force: bool,
@@ -390,7 +406,7 @@ pub fn rollback_migration(
     }
 
     // Create backup before rollback
-    backup_database(db_name)
+    backup_database(project_root, db_name)
         .map_err(|e| rusqlite::Error::SqliteFailure(
             ffi::Error::new(ffi::SQLITE_IOERR),
             Some(format!("Failed to backup database: {}", e))
@@ -417,15 +433,20 @@ pub fn rollback_migration(
 }
 
 /// Applies all pending migrations
-/// 
+///
 /// # Arguments
+/// * `project_root` - Server project root (dxn-files is under this)
 /// * `db_name` - Database name (without .db extension)
 /// * `force` - If true, skip approval checks
-/// 
+///
 /// # Returns
 /// Vector of results for each migration
-pub fn apply_all_pending(db_name: &str, force: bool) -> Result<Vec<(String, MigrationResult)>> {
-    let migrations = load_migrations()
+pub fn apply_all_pending(
+    project_root: &str,
+    db_name: &str,
+    force: bool,
+) -> Result<Vec<(String, MigrationResult)>> {
+    let migrations = load_migrations(project_root)
         .map_err(|e| rusqlite::Error::SqliteFailure(
             ffi::Error::new(ffi::SQLITE_IOERR),
             Some(format!("Failed to load migrations: {}", e))
@@ -440,7 +461,7 @@ pub fn apply_all_pending(db_name: &str, force: bool) -> Result<Vec<(String, Migr
     let mut results = Vec::new();
 
     for migration in pending {
-        let result = apply_migration(db_name, migration, force)?;
+        let result = apply_migration(project_root, db_name, migration, force)?;
         results.push((migration.id.clone(), result));
     }
 

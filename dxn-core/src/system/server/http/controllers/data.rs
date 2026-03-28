@@ -1,10 +1,11 @@
 //use serde::Deserialize;
-use actix_web::{ web,  HttpResponse, HttpRequest, Responder}; 
-use crate::data::db::sqlite; 
+use actix_web::{web, HttpResponse, HttpRequest, Responder};
+use crate::data::db::sqlite;
 use crate::data::db::sqlite::migrations;
 use crate::data::db::sqlite::repository_schema;
 use crate::data::db::sqlite::repository_events;
-use crate::data::models::{QueryParams, EventType}; 
+use crate::data::models::{QueryParams, EventType};
+use crate::system::models::AppState;
 use crate::system::server::models::{ApiResultResponse, ApiErrorWithCode, DataApiMeta, ListResponse, Pagination};
  
 use rusqlite::{Row, types::ValueRef, Result, Error as SqlError};
@@ -499,6 +500,7 @@ pub struct MigrationRequest {
 /// POST /api/data/migrate/{migration_id}
 /// Body: { "db_name": "public", "force": false }
 pub async fn apply_migration_route(
+    app: web::Data<AppState>,
     path: web::Path<String>,
     payload: web::Json<MigrationRequest>,
 ) -> impl Responder {
@@ -507,7 +509,7 @@ pub async fn apply_migration_route(
     let force = payload.force.unwrap_or(false);
 
     // Load all migrations to find the one we want
-    let migrations_list = match migrations::load_migrations() {
+    let migrations_list = match migrations::load_migrations(&app.project_root) {
         Ok(ms) => ms,
         Err(e) => {
             return HttpResponse::InternalServerError().json(json!({
@@ -520,7 +522,7 @@ pub async fn apply_migration_route(
     
     match migration {
         Some(m) => {
-            match migrations::apply_migration(db_name, m, force) {
+            match migrations::apply_migration(&app.project_root, db_name, m, force) {
                 Ok(result) => {
                     match result {
                         migrations::MigrationResult::Applied => {
@@ -564,16 +566,17 @@ pub async fn apply_migration_route(
 }
 
 /// Apply all pending migrations
-/// 
+///
 /// POST /api/data/migrate/all
 /// Body: { "db_name": "public", "force": false }
 pub async fn apply_all_migrations_route(
+    app: web::Data<AppState>,
     payload: web::Json<MigrationRequest>,
 ) -> impl Responder {
     let db_name = payload.db_name.as_deref().unwrap_or("public");
     let force = payload.force.unwrap_or(false);
 
-    match migrations::apply_all_pending(db_name, force) {
+    match migrations::apply_all_pending(&app.project_root, db_name, force) {
         Ok(results) => {
             let mut applied = Vec::new();
             let mut requires_approval = Vec::new();
@@ -621,15 +624,16 @@ pub async fn apply_all_migrations_route(
 }
 
 /// List all migrations and their status
-/// 
+///
 /// GET /api/data/migrate/list?db_name=public
 pub async fn list_migrations_route(
+    app: web::Data<AppState>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
     let db_name = query.get("db_name").map(|s| s.as_str()).unwrap_or("public");
 
     // Load all migrations
-    let migrations_list = match migrations::load_migrations() {
+    let migrations_list = match migrations::load_migrations(&app.project_root) {
         Ok(ms) => ms,
         Err(e) => {
             return HttpResponse::InternalServerError().json(json!({

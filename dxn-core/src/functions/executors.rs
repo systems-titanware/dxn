@@ -17,11 +17,13 @@ struct HostState {
 // WASM Executor - Manual memory management with packed i64 return values
 pub async fn execute_wasm(
     function: &SystemFunctionModel,
-    params: &[serde_json::Value]
+    params: &[serde_json::Value],
+    path_override: Option<&str>,
 ) -> Result<serde_json::Value, FunctionError> {
     use wasmtime::Val;
-    
-    let path = function.path.as_ref()
+
+    let path = path_override
+        .or_else(|| function.path.as_deref())
         .ok_or_else(|| FunctionError::InvalidInput("WASM path not specified".to_string()))?;
     
     // Use function_name if provided, otherwise default to name
@@ -106,9 +108,11 @@ pub async fn execute_wasm(
 // Native Executor
 pub async fn execute_native(
     function: &SystemFunctionModel,
-    params: &[serde_json::Value]
+    params: &[serde_json::Value],
+    library_path_override: Option<&str>,
 ) -> Result<serde_json::Value, FunctionError> {
-    let library_path = function.library_path.as_ref()
+    let library_path = library_path_override
+        .or_else(|| function.library_path.as_deref())
         .ok_or_else(|| FunctionError::InvalidInput("Library path not specified".to_string()))?;
     
     // Use symbol_name if provided, otherwise default to name
@@ -191,9 +195,11 @@ pub async fn execute_remote(
 // Script Executor (JavaScript/TypeScript)
 pub async fn execute_script(
     function: &SystemFunctionModel,
-    params: &[serde_json::Value]
+    params: &[serde_json::Value],
+    script_path_override: Option<&str>,
 ) -> Result<serde_json::Value, FunctionError> {
-    let script_path = function.script_path.as_ref()
+    let script_path = script_path_override
+        .or_else(|| function.script_path.as_deref())
         .ok_or_else(|| FunctionError::InvalidInput("Script path not specified".to_string()))?;
     
     // Use function_name if provided, otherwise default to name

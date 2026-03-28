@@ -19,6 +19,7 @@ fn build_app_state(
         counter: RwLock::new(0),
         db_name: "test-db".to_string(),
         project_root: ".".to_string(),
+        dxn_files_root: "./dxn-files".to_string(),
         system: System {
             data: SystemData {
                 public: Some(data_models),
@@ -40,6 +41,7 @@ fn build_app_state(
             files: None,
         },
         uuid: Uuid::now_v7(),
+        sa_identity: None,
     }
 }
 

@@ -12,10 +12,10 @@ use crate::functions::models::{EnumParamTypes};
 use serde::{Deserialize, Serialize};
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
 use std::collections::HashMap;
-use std::path::PathBuf;
 use serde_json::{json, Value, Map};
 use handlebars::Handlebars;
-use crate::system::server::constants::{SHARED_FILES_PATH, GLOBAL_ROUTES_PATH, GLOBAL_BASE_ROUTE_PATH};
+use crate::system::server::constants::{GLOBAL_ROUTES_PATH, GLOBAL_BASE_ROUTE_PATH};
+use crate::system::files::dxn_files;
 
 fn get_html_404() -> &'static str {
     r#"
@@ -32,6 +32,21 @@ fn get_html_500() -> &'static str {
         <body><h1>500</h1><p>There was an error loading this page.</p></body>
         </html>
     "#
+}
+
+fn get_html_500_with_detail(detail: &str) -> String {
+    let escaped = detail
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;");
+    format!(
+        r#"<!DOCTYPE html>
+<html><head><title>DXN</title></head>
+<body><h1>500</h1><p>There was an error loading this page.</p><pre>{}</pre></body>
+</html>"#,
+        escaped
+    )
 }
 
 
@@ -64,79 +79,66 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
             // If route has file, read file
             // If route has function, run function
 
-            // Construct path to routes file (routes are in dxn-files/routes/, not dxn-files/_files/)
+            // Read route file from startup-resolved dxn-files root.
             let routes_path = format!("{}/{}", GLOBAL_ROUTES_PATH, route_item.file);
-            let full_path = match PathBuf::from(format!("./dxn-files/{}", routes_path)).canonicalize() {
-                Ok(path) => path,
-                Err(e) => {
-                    println!("500: Failed to resolve path: {:?}", e);
-                    crate::system::logger::log_error(format!("Failed to resolve absolute path for {}: {}", routes_path, e).as_str());
-                    return HttpResponse::Ok().content_type("text/html").body(get_html_500());
-                }
-            };
-                
-            // Load page content
-            // Note: We don't escape Alpine.js expressions here because Handlebars triple braces {{{content}}}
-            // should render raw HTML. However, if Handlebars still tries to parse expressions in attributes,
-            // we may need to use a different approach.
-            let page_content = match std::fs::read_to_string(&full_path) {
+            let page_content = match dxn_files::read_under_dxn_files_root(&data.dxn_files_root, &routes_path) {
                 Ok(content) => content,
-                Err(err) => {
-                    println!("500: {:?}", err);
-                    crate::system::logger::log_error(format!("Error loading path {}, {:?}", full_path.display(), err).as_str());
-                    return HttpResponse::Ok().content_type("text/html").body(get_html_500());
+                Err(e) => {
+                    let detail = format!(
+                        "Failed to load route file.\nrelative path: {}\nproject_root: {}\ndxn_files_root: {}\nerror: {}",
+                        routes_path,
+                        data.project_root,
+                        data.dxn_files_root,
+                        e
+                    );
+                    crate::system::logger::log_error(&detail);
+                    return HttpResponse::Ok()
+                        .content_type("text/html")
+                        .body(get_html_500_with_detail(&detail));
                 }
             };
-            
+
             // Check if layout is specified
             let final_content = if let Some(layout_file) = &route_item.layout {
-                // Load layout file
                 let layout_path = format!("{}/{}", GLOBAL_ROUTES_PATH, layout_file);
-                let layout_full_path = match PathBuf::from(format!("./dxn-files/{}", layout_path)).canonicalize() {
-                    Ok(path) => path,
+                let layout_template = match dxn_files::read_under_dxn_files_root(&data.dxn_files_root, &layout_path) {
+                    Ok(template) => template,
                     Err(e) => {
-                        println!("500: Failed to resolve layout path: {:?}", e);
-                        crate::system::logger::log_error(format!("Failed to resolve layout path {}: {}", layout_path, e).as_str());
-                        // Fallback to page content without layout
-                        return HttpResponse::Ok().content_type("text/html").body(page_content);
+                        let detail = format!(
+                            "Failed to load layout file.\nrelative path: {}\nproject_root: {}\ndxn_files_root: {}\nerror: {}",
+                            layout_path,
+                            data.project_root,
+                            data.dxn_files_root,
+                            e
+                        );
+                        crate::system::logger::log_error(&detail);
+                        return HttpResponse::Ok()
+                            .content_type("text/html")
+                            .body(get_html_500_with_detail(&detail));
                     }
                 };
-                
-                // Load layout template
-                match std::fs::read_to_string(&layout_full_path) {
-                    Ok(layout_template) => {
-                        // First, do simple string replacement for content to avoid Handlebars parsing Alpine.js
-                        // Replace {{{content}}} with actual content before Handlebars processes it
-                        let layout_with_content = layout_template.replace("{{{content}}}", &page_content);
-                        
-                        // Render template with Handlebars (only for title and other simple variables)
-                        let mut handlebars = Handlebars::new();
-                        handlebars.set_strict_mode(false); // Allow missing variables
-                        
-                        // Prepare template context (Handlebars expects serde_json::Value)
-                        let data = json!({
-                            "title": route_item.name,
-                            "route": {
-                                "name": route_item.name,
-                                "path": full_path.display().to_string()
-                            }
-                        });
-                        
-                        // Render template (content is already inserted, so Handlebars won't parse Alpine.js)
-                        match handlebars.render_template(&layout_with_content, &data) {
-                            Ok(rendered) => rendered,
-                            Err(e) => {
-                                println!("500: Template rendering error: {:?}", e);
-                                crate::system::logger::log_error(format!("Template rendering error: {}", e).as_str());
-                                // Fallback to page content
-                                page_content
-                            }
-                        }
-                    },
+
+                // First, do simple string replacement for content to avoid Handlebars parsing Alpine.js
+                let layout_with_content = layout_template.replace("{{{content}}}", &page_content);
+
+                // Render template with Handlebars (only for title and other simple variables)
+                let mut handlebars = Handlebars::new();
+                handlebars.set_strict_mode(false); // Allow missing variables
+
+                // Prepare template context (Handlebars expects serde_json::Value)
+                let template_data = json!({
+                    "title": route_item.name,
+                    "route": {
+                        "name": route_item.name,
+                        "path": routes_path
+                    }
+                });
+
+                // Render template (content is already inserted, so Handlebars won't parse Alpine.js)
+                match handlebars.render_template(&layout_with_content, &template_data) {
+                    Ok(rendered) => rendered,
                     Err(e) => {
-                        println!("500: Failed to load layout: {:?}", e);
-                        crate::system::logger::log_error(format!("Failed to load layout {}: {}", layout_full_path.display(), e).as_str());
-                        // Fallback to page content
+                        crate::system::logger::log_error(format!("Template rendering error: {}", e).as_str());
                         page_content
                     }
                 }
@@ -148,9 +150,7 @@ pub async fn get(req: HttpRequest, data: web::Data<AppState>) -> impl Responder 
             // Return rendered content
             return HttpResponse::Ok().content_type("text/html").body(final_content);
         },
-        Error => {
-            // Return 404
-            println!("404");
+        None => {
             return HttpResponse::Ok().content_type("text/html").body(get_html_404())
         }
     };

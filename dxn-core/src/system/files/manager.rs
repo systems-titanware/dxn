@@ -13,8 +13,19 @@ use std::os::darwin;
 use std::path::Path;
 use std::path::PathBuf;
 use std::io::Write;
+use std::sync::OnceLock;
 
-const ROOT_FILE_PATH: &str = "../dxn-files/_files";
+/// Subdir under dxn-files used by the file manager (e.g. logs).
+const FILES_SUBDIR: &str = "_files";
+/// Fallback when project root not set (relative to cwd).
+const ROOT_FILE_PATH_FALLBACK: &str = "../dxn-files/_files";
+
+static PROJECT_ROOT: OnceLock<String> = OnceLock::new();
+
+/// Set the project root at startup so get_full_path uses project_root/dxn-files/_files.
+pub fn set_project_root(root: &str) {
+    let _ = PROJECT_ROOT.set(root.trim_end_matches('/').to_string());
+}
 
 // A simple implementation of `% cat path`
 pub fn read_file(path: &str) -> io::Result<String> {
@@ -79,10 +90,11 @@ pub fn add_file(path: &str) -> io::Result<()> {
 }
 
 pub(crate) fn get_full_path(path: &str) -> PathBuf {
-    let mut full_path = PathBuf::new();
-    full_path.push(ROOT_FILE_PATH);
-    full_path.push(Path::new(path));
-    full_path
+    let base = PROJECT_ROOT
+        .get()
+        .map(|root| format!("{}/dxn-files/{}", root, FILES_SUBDIR))
+        .unwrap_or_else(|| ROOT_FILE_PATH_FALLBACK.to_string());
+    PathBuf::from(&base).join(Path::new(path))
 }
 
 pub fn add_dir(path: &str) -> io::Result<()> { 

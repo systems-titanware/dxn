@@ -16,7 +16,6 @@ uuid = { version = "1.18.1", features = ["v7", "serde"] }
 serde_rusqlite = { version = "0.40.1" }
 chrono = { version = "0.4", features = ["serde"] }
 dxn_proc_macros = { path = "../dxn_proc_macros" }
-dxn_shared = { path = "../dxn-shared" }
 tokio = { version = "1.48.0", features = ["full"] }
 wasmtime = { version="39.0.1" }
 anyhow = "1.0"
@@ -25,6 +24,13 @@ reqwest = { version = "0.12", features = ["json"] }
 wasm-bindgen = "0.2"
 handlebars = "5.1"
 bytes = "1.11.1"
+argon2 = "0.5"
+jsonwebtoken = "9"
+sha2 = "0.10"
+base64 = "0.22"
+hex = "0.4"
+subtle = "2.5"
+securestore = "0.100"
 
 [features]
 default = []
