@@ -8,6 +8,7 @@ use crate::functions::models::{SystemFunctions};
 use crate::system::server::models::{SystemServer};
 use crate::integrations::models::{SystemIntegrations, ServiceMeshConfig};
 use crate::system::auth::sa_identity::SaIdentity;
+use crate::system::keystore::KeystoreManager;
 use std::fmt;
 use std::error::Error;
 
@@ -25,6 +26,9 @@ pub struct AppState {
     pub(crate) dxn_files_root: String,
     /// SA identity from .sa-identity.json when present; used for auth and Bearer verification.
     pub(crate) sa_identity: Option<SaIdentity>,
+    /// SecureStore keystore after fingerprint verification, if vault + key files exist on disk.
+    #[serde(skip)]
+    pub(crate) keystore: Option<KeystoreManager>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

@@ -5,3 +5,8 @@ pub mod serialization;
 pub mod server;
 pub mod files;
 pub mod keystore;
+pub mod setup_lock;
+pub mod vault_verify;
+pub mod config_root;
+pub mod core_state;
+pub mod keystore_ingest;

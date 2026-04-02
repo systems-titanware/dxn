@@ -14,7 +14,7 @@ use std::path::Path;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
 use actix_web::body::BoxBody;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use rusqlite::{params, Connection, Result};
 use data::db::sqlite::*;
 
@@ -28,10 +28,39 @@ use crate::system::server::models::{SystemServer, SystemServerRoute};
 use crate::integrations::models::{SystemIntegrations, SystemIntegrationModel};
 
 use crate::system::logger;
-use crate::system::models::{AppState, System};
+use crate::system::models::AppState;
+use crate::system::config_root::ConfigRoot;
+use crate::system::keystore::{KeystoreManager, SecureStoreKeystoreProvider};
 use crate::data::db::models::{DbColumn};
 
 const SETUP_LOCK_FILENAME: &str = ".dxn-setup-lock.json";
+
+/// Load `dxn-core/.env` (same directory as `config_path`) before reading `DXN_CORE_SECRET` etc.
+/// Missing `.env` is OK (use shell env or systemd `EnvironmentFile`).
+/// When `DXN_ENV=development` (default if unset), also loads `.env.development` with override.
+fn load_dotenv_next_to_config(config_path: &str) {
+    let dir = Path::new(config_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    let dotenv_path = dir.join(".env");
+    if dotenv_path.is_file() {
+        if dotenvy::from_path(&dotenv_path).is_ok() {
+            logger::log(&format!("Loaded environment from {}", dotenv_path.display()));
+        }
+    }
+    let is_dev = env::var("DXN_ENV").unwrap_or_else(|_| "development".to_string()) == "development";
+    if is_dev {
+        let dev_env = dir.join(".env.development");
+        if dev_env.is_file() {
+            if dotenvy::from_path_override(&dev_env).is_ok() {
+                logger::log(&format!(
+                    "Loaded environment overrides from {}",
+                    dev_env.display()
+                ));
+            }
+        }
+    }
+}
 
 fn ensure_provisioned_files(config_path: &str) -> io::Result<()> {
     let config = Path::new(config_path);
@@ -275,13 +304,51 @@ fn create_integrations(data: SystemIntegrations) -> Result<()> {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
-    logger::log("App initialized");
-    // DATA
+    // DATA — resolve config path first so `.env` loads from the same directory (dxn-core root).
     let file_path = "./config.json".to_string();
+    load_dotenv_next_to_config(&file_path);
+
+    logger::log("App initialized");
     ensure_provisioned_files(&file_path)?;
-    
-    let system_data = system::serialization::json::deserialize::<System>(file_path.clone());
-    
+
+    let raw = std::fs::read_to_string(&file_path)?;
+    let config_root: ConfigRoot = serde_json::from_str(&raw).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("invalid config.json: {}", e),
+        )
+    })?;
+
+    let lock_path = system::setup_lock::setup_lock_path_for_config(&file_path);
+    let setup_lock = system::setup_lock::load_setup_lock(&lock_path).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(".dxn-setup-lock.json: {}", e),
+        )
+    })?;
+
+    system::config_root::cross_check_vault_with_lock(&setup_lock, config_root.vault.as_ref())
+        .map_err(|msg| io::Error::new(io::ErrorKind::InvalidData, msg))?;
+
+    let secret = env::var("DXN_CORE_SECRET").map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "DXN_CORE_SECRET is not set. Add it to dxn-core/.env (same folder as config.json) or export it in the environment.",
+        )
+    })?;
+
+    system::vault_verify::verify_vault_fingerprint(
+        &secret,
+        &setup_lock.keystore.kdf,
+        &setup_lock.keystore.key_fingerprint,
+    )
+    .map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("Vault verification failed: {}", e),
+        )
+    })?;
+
     let project_root = system::files::project_root::resolve_project_root_with_config(&file_path)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     let auth_root = system::files::project_root::resolve_auth_root_with_config(&file_path, &project_root)
@@ -297,6 +364,103 @@ async fn main() -> std::io::Result<()> {
     logger::log(format!("Resolved dxn_files_root: {}", dxn_files_root).as_str());
     logger::log(format!("Resolved auth_root: {}", auth_root).as_str());
     system::files::manager::set_project_root(&project_root);
+
+    let (vault_rel, key_rel) =
+        system::config_root::keystore_paths(&setup_lock, &config_root);
+    let vault_abs =
+        system::files::project_root::resolve_under_project_root(&project_root, vault_rel);
+    let key_abs = system::files::project_root::resolve_under_project_root(&project_root, key_rel);
+
+    let config_checksum = system::core_state::compute_config_checksum(&file_path)?;
+    let state_path = system::core_state::core_state_path(&file_path);
+    let state_opt = system::core_state::load_optional(&state_path)?;
+
+    if let Some(ref s) = state_opt {
+        if s.initialized && s.instance_id != setup_lock.instance_id {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "instance_id in .dxn-core-state.json does not match .dxn-setup-lock.json; remove stale state or use the correct project.",
+            ));
+        }
+        if s.initialized && s.config_checksum != config_checksum {
+            if env::var("DXN_ALLOW_CONFIG_CHECKSUM_DRIFT").unwrap_or_default() == "1" {
+                logger::log(
+                    "WARNING: config.json checksum drift vs .dxn-core-state.json; continuing (DXN_ALLOW_CONFIG_CHECKSUM_DRIFT=1). State checksum will be updated.",
+                );
+            } else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "config.json changed since last successful run (checksum drift vs .dxn-core-state.json). Re-run dxn-setup, restore the previous config, delete .dxn-core-state.json if intentional, or set DXN_ALLOW_CONFIG_CHECKSUM_DRIFT=1 after review.",
+                ));
+            }
+        }
+    }
+
+    let seed_path =
+        system::config_root::resolve_keystore_seed_path(&setup_lock, &config_root, &file_path);
+    let had_staging = seed_path
+        .as_ref()
+        .map(|p| system::keystore_ingest::staging_ready(p))
+        .unwrap_or(false);
+
+    let keystore = if had_staging {
+        let seed_dir = seed_path.as_ref().expect("had_staging implies path");
+        let prov = system::keystore_ingest::ingest_staged_secrets(seed_dir, &vault_abs, &key_abs)
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Keystore seed ingest failed (staging dir not removed): {}", e),
+                )
+            })?;
+        logger::log("Keystore seed ingest completed; staging directory removed.");
+        Some(KeystoreManager::new(
+            Arc::new(prov) as Arc<dyn crate::system::keystore::KeystoreProvider>,
+        ))
+    } else if vault_abs.is_file() && key_abs.is_file() {
+        let prov = SecureStoreKeystoreProvider::open(&vault_abs, &key_abs).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("Failed to open SecureStore keystore: {}", e),
+            )
+        })?;
+        logger::log("Keystore opened (SecureStore).");
+        Some(KeystoreManager::new(
+            Arc::new(prov) as Arc<dyn crate::system::keystore::KeystoreProvider>,
+        ))
+    } else {
+        logger::log(
+            "Keystore vault/key files not found and no staging directory to ingest; continuing without keystore.",
+        );
+        None
+    };
+
+    let new_state = match state_opt {
+        None => system::core_state::CoreState::new_first_write(
+            setup_lock.instance_id.clone(),
+            config_checksum.clone(),
+            true,
+        ),
+        Some(mut s) => {
+            if !s.initialized {
+                s.config_checksum = config_checksum.clone();
+            } else if env::var("DXN_ALLOW_CONFIG_CHECKSUM_DRIFT").unwrap_or_default() == "1"
+                && s.config_checksum != config_checksum
+            {
+                s.config_checksum = config_checksum.clone();
+            }
+            s.updated_at = Some(chrono::Utc::now());
+            s.initialized = true;
+            s.instance_id = setup_lock.instance_id.clone();
+            s.keystore_seed_ingested = true;
+            s.format_version = 1;
+            s.migration_version = s.migration_version.max(1);
+            s
+        }
+    };
+    system::core_state::save(&state_path, &new_state)?;
+
+    let system_data = config_root.system;
+
     let sa_identity = system::auth::sa_identity::load_sa_identity(&auth_root).ok();
     if sa_identity.is_none() {
         logger::log("SA identity file not found; auth and guarded routes will return 503/401 until .sa-identity.json is provisioned.");
@@ -305,12 +469,12 @@ async fn main() -> std::io::Result<()> {
         app_name: String::from("dxnet"),
         counter: RwLock::new(0),
         db_name: String::from("person"),
-        // TODO: Fix below to match if let, else
-        system: system_data.unwrap(),
+        system: system_data,
         uuid: Uuid::now_v7(),
         project_root,
         dxn_files_root,
         sa_identity,
+        keystore,
     });
 
 

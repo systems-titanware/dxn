@@ -226,10 +226,10 @@
     "allow_offline_reads": true,
     "kdf_profile": "standard",
     "algorithm": "argon2id",
-    "salt_b64": "ih/6R2mcwPU/J0mkKPkFsg==",
+    "salt_b64": "ey+MGceoyITXscwtvYfxFw==",
     "memory_kib": 65536,
     "iterations": 3,
     "parallelism": 4,
-    "key_fingerprint_b64": "OdKVw1OARbWumD4W0UtWV7oDmEsvfOeyMLOrpe9Sg2o="
+    "key_fingerprint_b64": "QOT8fzHYI8mgnFKYWbeSkq/7pdyizlLL4hioZO/0sF0="
   }
 }

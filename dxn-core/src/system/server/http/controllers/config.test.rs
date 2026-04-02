@@ -42,6 +42,7 @@ fn build_app_state(
         },
         uuid: Uuid::now_v7(),
         sa_identity: None,
+        keystore: None,
     }
 }
 

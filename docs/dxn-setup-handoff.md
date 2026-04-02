@@ -38,7 +38,14 @@ If a required variable is missing in non-interactive mode, the tool exits with a
 
 ## Environment variables (runtime — dxn-core)
 
-Provisioning is separate from **server** runtime. After setup, `dxn-core` may require a secret for vault verification (e.g. `DXN_CORE_SECRET` or equivalent — see `dxn-core` init flow and lock file format). Those are **not** set by `dxn-setup` in the server process; document them in deployment runbooks.
+| Variable | Purpose |
+|----------|---------|
+| `DXN_CORE_SECRET` | **Required** when starting `dxn-core`: must match the provisioning shared secret. Used to verify the KDF fingerprint in `.dxn-setup-lock.json` before the server boots. You can put it in **`dxn-core/.env`** (loaded automatically; same folder as `config.json`), or export it in the shell / systemd `EnvironmentFile` / orchestrator secrets. |
+| `DXN_ALLOW_CONFIG_CHECKSUM_DRIFT` | Set to `1` to allow `config.json` to differ from the checksum stored in `.dxn-core-state.json` (warns and updates the stored checksum). Default behavior is **fail** on drift so accidental config edits are caught. |
+
+If `DXN_CORE_SECRET` is missing or wrong, startup fails with a clear error (fingerprint mismatch).
+
+After a successful boot, **`dxn-core/.dxn-core-state.json`** records the last `config_checksum` and `instance_id`. Delete it only when you intentionally re-provision or accept resetting init metadata.
 
 ## Exit codes
 
@@ -58,6 +65,7 @@ The authoritative mapping of error variants to codes lives in **dxn-setup** `src
 | `dxn-core/.dxn-setup-lock.json` | Instance id, checksum, `keystore_seed_path`, `keystore` block (paths + KDF + fingerprint) |
 | `dxn-core/.dxn-keystore-seed/` | Staged plaintext seeds for **dxn-core** first-run ingest (remove after successful ingest) |
 | `dxn-core/.sa-identity.json` | SA identity for JWT login (restricted permissions on Unix) |
+| `dxn-core/.dxn-core-state.json` | Written by **dxn-core** after init: checksum binding, instance id, keystore ingest flag (do not edit by hand) |
 
 ## See also
 

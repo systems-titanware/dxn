@@ -25,6 +25,10 @@ dxn_public/_files/**/*
 dxn_public/integrations/*/Cargo.lock
 dxn-core/*.db.backup
 dxn-core/Cargo.lock
+# Local env (secrets); copy from .env.example if you add one
+dxn-core/.env
+dxn-core/.env.development
+dxn-core/.env.local
 examples/**/*
 dxn-files/**/*
 *.db

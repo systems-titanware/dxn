@@ -33,7 +33,7 @@ Spec context: `examples/z.documents/` (plan, Framework, api-spec, CQRS, encrypti
 **Product direction:** runtime secrets live in **SecureStore** (JSON vault + key file), e.g. `./dxn-files/_vault/keystore.json` + `keystore.key` per `keystore.md`. **`vault.db` is no longer the key-vault story.**
 
 - [x] **dxn-setup** — emit lock + config with **`keystore.vault_path`** and **`keystore.key_path`** (defaults under `dxn-files/_vault/`); lock has **`keystore`** (not `vault` with `path`). KDF + fingerprint live under `keystore` in the lock; config **`vault`** is KDF + fingerprint only for verification. *Breaking change: consumers read `lock["keystore"]`, not `lock["vault"]` for paths.*
-- [ ] **dxn-core** — deserialize `keystore` / `vault` from `config.json`, parse **`keystore`** from `.dxn-setup-lock.json`, resolve relative paths against `project_root`, open `SecureStoreKeystoreProvider` per `keystore.md` (Phase F + G2; not wired in `main` / `AppState` yet).
+- [x] **dxn-core** — `config_root::ConfigRoot` + `setup_lock::load_setup_lock`; paths resolved with `files::project_root::resolve_under_project_root`; keystore on `AppState` when vault + key files exist (Phase G2: create + ingest if absent)
 
 ## Phase C: Handoff and docs
 
@@ -58,15 +58,15 @@ Spec context: `examples/z.documents/` (plan, Framework, api-spec, CQRS, encrypti
 
 ## Phase F: Lock parsing and vault gate
 
-- [ ] Parse and validate `.dxn-setup-lock.json` structure (required fields for vault verification)
-- [ ] Read vault metadata from lock; require `DXN_CORE_SECRET` (or agreed input); derive key; verify fingerprint; exit on mismatch
-- [ ] Open **SecureStore** keystore (vault JSON + key per lock/config) after verifying KDF fingerprint; **not** `vault.db` for secrets
+- [x] Parse and validate `.dxn-setup-lock.json` structure (required fields for vault verification) — `system::setup_lock`
+- [x] Read vault metadata from lock; require `DXN_CORE_SECRET`; derive key; verify fingerprint; exit on mismatch — `system::vault_verify` (must match dxn-setup KDF + HMAC `"DXN_VAULT"`)
+- [x] Open **SecureStore** keystore (`keystore.vault_path` + `key_path` resolved under `project_root`) when both files exist; otherwise log and continue (first-run ingest / Phase G2)
 
 ## Phase G: One-time init and config drift
 
-- [ ] `.dxn-core-state.json`: initialized, instance id, timestamps, `config_checksum`, migration version
-- [ ] Heavy bootstrap (schema sync from config, seeds) only when not initialized
-- [ ] Later boots: warn or fail on `config_checksum` drift vs `config.json` (per init-flow doc)
+- [x] `.dxn-core-state.json`: `initialized`, `instance_id`, `config_checksum` (`sha256:` + hex), `keystore_seed_ingested`, `migration_version`, `updated_at` — `system::core_state`
+- [ ] Heavy bootstrap (schema sync from config) **only when not initialized** — *deferred:* `bootstrap_schemas` / `bootstrap_files` remain **every boot** (idempotent upsert); only **keystore seed ingest** is strictly one-time via staging removal + state
+- [x] Later boots: **fail** on `config_checksum` drift vs `config.json` unless `DXN_ALLOW_CONFIG_CHECKSUM_DRIFT=1` (then warn + update stored checksum); **fail** on `instance_id` mismatch vs lock
 
 ---
 
@@ -85,14 +85,14 @@ Spec context: `examples/z.documents/` (plan, Framework, api-spec, CQRS, encrypti
 
 ## Phase G2: Keystore seed ingest (implementation tasks)
 
-- [ ] Read staging path from config + lock; resolve relative paths against `config.json` parent or `project_root`
-- [ ] If seed directory missing: skip (already done or never staged)
-- [ ] If seed directory present: parse `manifest.json` + `secrets.seed` (same rules as setup: skip blanks/`#`, key shape)
-- [ ] Open/create SecureStore vault + key per config; ingest all entries; persist vault
-- [ ] **Only after success:** recursively remove `.dxn-keystore-seed` (or configured path)
-- [ ] On ingest failure: **do not** delete staging; log clearly; exit non-zero or refuse to serve (product choice)
-- [ ] Mark ingest complete in `.dxn-core-state.json` (or nested field) tied to instance / checksum
-- [ ] Tests: temp dirs — staged seeds → ingest → staging gone → second run no-op
+- [x] Staging path: **lock wins** when set; else `settings.keystoreSeedPath`; relative paths resolved vs `config.json` parent — `config_root::resolve_keystore_seed_path`
+- [x] Seed directory missing or not `staging_ready` (no `manifest.json` + `secrets.seed`): skip ingest
+- [x] Staging present: parse manifest, verify `entries_sha256`, parse `secrets.seed` (blanks/`#`, key `ASCII alnum` + `._-`, no dupes)
+- [x] Create vault + key (`Csprng`) if absent; else load existing and merge keys; `save_as` + `export_key` when new
+- [x] **Only after success:** `remove_dir_all` staging
+- [x] Ingest failure: staging **not** removed; startup returns error
+- [x] State file records `keystore_seed_ingested` + checksum (see Phase G)
+- [x] Tests: `keystore_ingest` unit tests (parse + full ingest round-trip)
 
 ## Startup behavior: run every time vs only once
 

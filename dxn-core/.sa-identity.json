@@ -1,13 +1,13 @@
 {
-  "id": "035444aa-4c6b-423a-902a-d0ef2eae9569",
+  "id": "abcc63c8-ef6d-4559-8a8b-13b661219608",
   "username": "admin",
-  "password_hash": "zNg5WPSEpdCPIVARC2XoYt7sWzohkS4GGneFbKwlrQI=",
-  "password_salt": "RuFkAEkz02qKiA5xgDnMqw==",
-  "created_at": "2026-03-28T19:42:27Z",
+  "password_hash": "rSAD/+XyjW0tqkl4K8VZZ96kC4qMNaX1SkutBILyaow=",
+  "password_salt": "AR4Ii1gFPQBojIo1JH+HVw==",
+  "created_at": "2026-03-28T21:24:53Z",
   "kdf_params": {
     "memory_kib": 65536,
     "iterations": 3,
     "parallelism": 4
   },
-  "jwt_signing_key": "f1GILDEgf91NHRisspvo2mDnjbSW0X/ByfkzRYdY+5c="
+  "jwt_signing_key": "h4evQpu3DveZ9RCVA5JjbRtkK4z8EG4UcV7S+xgXZ0s="
 }

@@ -9,6 +9,12 @@ pub struct KeystoreManager {
     provider: Arc<dyn KeystoreProvider>,
 }
 
+impl std::fmt::Debug for KeystoreManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeystoreManager").finish_non_exhaustive()
+    }
+}
+
 impl KeystoreManager {
     pub fn new(provider: Arc<dyn KeystoreProvider>) -> Self {
         Self { provider }

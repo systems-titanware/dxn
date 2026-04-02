@@ -76,6 +76,18 @@ pub fn resolve_project_root_with_config(config_path: &str) -> Result<String, Str
     resolve_project_root()
 }
 
+/// Resolve a path from config or lock: absolute paths are used as-is; relative paths (including
+/// `./...`) are resolved under `project_root`.
+pub fn resolve_under_project_root(project_root: &str, path: &str) -> PathBuf {
+    let trimmed = path.trim();
+    let p = PathBuf::from(trimmed);
+    if p.is_absolute() {
+        return p;
+    }
+    let without_dot = trimmed.trim_start_matches("./");
+    Path::new(project_root).join(without_dot)
+}
+
 /// Returns absolute `project_root/dxn-files` path for the already-resolved project root.
 pub fn dxn_files_root(project_root: &str) -> String {
     Path::new(project_root)
