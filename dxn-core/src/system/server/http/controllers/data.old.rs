@@ -7,7 +7,6 @@ use crate::data::models::{Person,QueryParams, AppState,SystemData, SystemDataMod
 use std::error::Error;
 use rusqlite::{Row};
 use serde::{Deserialize, Serialize};
-use dxn_proc_macros::FieldNames; // Import your custom derive macro
 //If T is needed for trait bounds or methods but not a field: You can use std::marker::PhantomData<T> to explicitly tell the compiler that you are aware of the unused parameter and intend to use it to "act like" the struct owns a T. PhantomData takes up no memory space.
 use std::marker::PhantomData;
 use std::collections::HashMap;

@@ -16,7 +16,6 @@ serde_json = { version = "1.0" }
 uuid = { version = "1.18.1", features = ["v7", "serde"] }
 serde_rusqlite = { version = "0.40.1" }
 chrono = { version = "0.4", features = ["serde"] }
-dxn_proc_macros = { path = "../dxn_proc_macros" }
 tokio = { version = "1.48.0", features = ["full"] }
 wasmtime = { version="39.0.1" }
 anyhow = "1.0"

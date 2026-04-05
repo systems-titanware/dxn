@@ -950,7 +950,6 @@ dependencies = [
  "bytes",
  "chrono",
  "dotenvy",
- "dxn_proc_macros",
  "futures-util",
  "handlebars",
  "hex",
@@ -975,14 +974,6 @@ dependencies = [
  "uuid",
  "wasm-bindgen",
  "wasmtime",
-]
-
-[[package]]
-name = "dxn_proc_macros"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn 2.0.111",
 ]
 
 [[package]]
