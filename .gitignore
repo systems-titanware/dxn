@@ -31,6 +31,5 @@ dxn-core/.env.development
 dxn-core/.env.local
 examples/**/*
 dxn-files/**/*
-*.db
 dxn-core/.dxn-setup-lock.json
 dxn-core/.dxn-core-state.json
